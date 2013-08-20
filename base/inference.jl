@@ -1972,7 +1972,9 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
             body.args[i] = gn(newlabels[a.label+1])
         elseif isa(a,Expr)
             a = a::Expr
-            if a.head === :gotoifnot
+            if a.head === :enter
+                a.args[1] = newlabels[a.args[1]+1]
+            elseif a.head === :gotoifnot
                 a.args[2] = newlabels[a.args[2]+1]
             end
         end

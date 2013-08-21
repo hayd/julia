@@ -1570,7 +1570,17 @@ function sym_replace(e::ANY, from1, from2, to1, to2)
         return e
     end
     e = e::Expr
-    if !is(e.head,:line)
+    if e.head === :(=)
+        # remove_redundant_temp_vars can only handle Symbols
+        # on the LHS of assignments, so we make sure not to put
+        # something else there
+        e2 = _sym_repl(e.args[1]::Symbol, from1, from2, to1, to2, e.args[1])
+        if isa(e2, SymbolNode)
+            e2 = e2.name
+        end
+        e.args[1] = e2::Symbol
+        e.args[2] = sym_replace(e.args[2], from1, from2, to1, to2)
+    elseif e.head !== :line
         for i=1:length(e.args)
             e.args[i] = sym_replace(e.args[i], from1, from2, to1, to2)
         end
@@ -1845,7 +1855,8 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
         needcopy = false
     end
     ast = ast::Expr
-    for vi in ast.args[2][2]
+    vinflist = ast.args[2][2]::Array{Any,1}
+    for vi in vinflist
         if (vi[3]&1)!=0
             # captures variables (TODO)
             return NF
@@ -1892,13 +1903,12 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
     spnames = { sp[i].name for i=1:2:length(sp) }
 
     # avoid capturing free variables in enclosing function with the same name as in our function
-    enc_locllist = enclosing_ast.args[2][1]::Array{Any,1}
     enc_vinflist = enclosing_ast.args[2][2]::Array{Any,1}
+    enc_locllist = enclosing_ast.args[2][1]::Array{Any,1}
     locllist = ast.args[2][1]::Array{Any,1}
-    vinflist = ast.args[2][2]::Array{Any,1}
     for localval in locllist
         localval = localval::Symbol
-        vnew = unique_name(enclosing_ast)
+        vnew = unique_name(enclosing_ast, ast)
         push!(spnames, localval)
         push!(spvals, vnew)
         push!(enc_locllist, vnew)
@@ -1936,7 +1946,7 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
             if islocal || (!isa(aei,Symbol) && !isa(aei,Number) && !isa(aei,SymbolNode) && !isa(aei,String)) || (occ==0 && is(aeitype,None))
                 # introduce variable for this argument
                 if occ != 0
-                    vnew = unique_name(enclosing_ast)
+                    vnew = unique_name(enclosing_ast, ast)
                     add_variable(enclosing_ast, vnew, aeitype)
                     push!(stmts, Expr(:(=), vnew, aei))
                     argexprs[i] = aeitype===Any ? vnew : SymbolNode(vnew,aeitype)
@@ -1982,7 +1992,7 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
 
     # convert return statements into a series of goto's
     retstmt = genlabel(sv)
-    retval = unique_name(enclosing_ast)
+    retval = unique_name(enclosing_ast, ast)
     multiret = false
     lastexpr = pop!(body.args)
     if isa(lastexpr,LabelNode)
@@ -2008,16 +2018,13 @@ function inlineable(f, e::Expr, atypes, sv, enclosing_ast)
     if multiret
         rettype = exprtype(ast.args[3])
         add_variable(enclosing_ast, retval, rettype)
-        if rettype !== Any
-            retval = SymbolNode(retval,rettype)
-        end
         if lastexpr !== nothing
             unshift!(lastexpr.args, retval)
             lastexpr.head = :(=)
             push!(stmts, lastexpr)
         end
         push!(stmts, retstmt)
-        expr = retval
+        expr = rettype===Any ? retval : SymbolNode(retval,rettype)
     else
         expr = lastexpr.args[1]
     end
@@ -2306,6 +2313,22 @@ function unique_name(ast)
     end
     g = gensym()
     while contains_is(locllist, g)
+        g = gensym()
+    end
+    g
+end
+function unique_name(ast1, ast2)
+    locllist1 = ast1.args[2][1]::Array{Any,1}
+    locllist2 = ast2.args[2][1]::Array{Any,1}
+    for g in some_names
+        if !contains_is(locllist1, g) &&
+           !contains_is(locllist2, g)
+            return g
+        end
+    end
+    g = gensym()
+    while contains_is(locllist1, g) |
+          contains_is(locllist2, g)
         g = gensym()
     end
     g

@@ -16,13 +16,8 @@ function Triangular(A::Matrix)
 end
 
 size(A::Triangular, args...) = size(A.UL, args...)
-function full(A::Triangular)
-    if 
-        istril(A) return tril(A.UL)
-    else
-        return triu(A.UL)
-    end
-end
+full(A::Triangular) = (istril(A) ? tril : triu)(A.UL)
+
 print_matrix(io::IO, A::Triangular, rows::Integer, cols::Integer) = print_matrix(io, full(A), rows, cols)
 
 istril(A::Triangular) = A.uplo == 'L'

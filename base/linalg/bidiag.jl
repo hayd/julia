@@ -22,7 +22,7 @@ function Bidiagonal{T<:BlasFloat}(dv::Vector{T}, ev::Vector{T}, uplo::BlasChar)
     elseif uplo=='L'
         isupper = false
     else
-        error(string("Bidiagonal can only be upper 'U' or lower 'L' but you said '", uplo, "'"))
+        error("Bidiagonal can only be upper 'U' or lower 'L' but you said '$uplo''")
     end
     Bidiagonal{T}(copy(dv), copy(ev), isupper)
 end
@@ -73,24 +73,16 @@ ctranspose(M::Bidiagonal) = Bidiagonal(conj(M.dv), conj(M.ev), !M.isupper)
 function +(A::Bidiagonal, B::Bidiagonal)
     if A.isupper==B.isupper
         Bidiagonal(A.dv+B.dv, A.ev+B.ev, A.isupper)
-    else #return tridiagonal
-        if A.isupper #&& !B.isupper
-            Tridiagonal(B.ev,A.dv+B.dv,A.ev)
-        else
-            Tridiagonal(A.ev,A.dv+B.dv,B.ev)
-        end
+    else
+        apply(Tridiagonal, A.isupper ? (B.ev,A.dv+B.dv,A.ev) : (A.ev,A.dv+B.dv,B.ev))
     end
 end
 
 function -(A::Bidiagonal, B::Bidiagonal)
     if A.isupper==B.isupper
         Bidiagonal(A.dv-B.dv, A.ev-B.ev, A.isupper)
-    else #return tridiagonal
-        if A.isupper #&& !B.isupper
-            Tridiagonal(-B.ev,A.dv-B.dv,A.ev)
-        else
-            Tridiagonal(A.ev,A.dv-B.dv,-B.ev)
-        end
+    else
+        apply(Tridiagonal, A.isupper ? (-B.ev,A.dv-B.dv,A.ev) : (A.ev,A.dv-B.dv,-B.ev))
     end
 end
 
@@ -111,13 +103,10 @@ end
 function \{T<:BlasFloat}(M::Bidiagonal{T}, rhs::StridedVecOrMat{T})
     if stride(rhs, 1) == 1
         z = zeros(size(M, 1) - 1)
-        if M.isupper
-            return LAPACK.gtsv!(z, copy(M.dv), copy(M.ev), copy(rhs))
-        else
-            return LAPACK.gtsv!(copy(M.ev), copy(M.dv), z, copy(rhs))
-        end
+        apply(LAPACK.gtsv!, M.isupper ? (z, copy(M.dv), copy(M.ev), copy(rhs)) : (copy(M.ev), copy(M.dv), z, copy(rhs)))
+    else
+        solve(M, rhs)  # use the Julia "fallback"
     end
-    solve(M, rhs)  # use the Julia "fallback"
 end
 
 #Wrap bdsdc to compute singular values and vectors

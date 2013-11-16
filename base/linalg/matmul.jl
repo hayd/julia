@@ -3,9 +3,7 @@
 # multiply by diagonal matrix as vector
 function scale!(C::Matrix, A::Matrix, b::Vector)
     m, n = size(A)
-    if n != length(b)
-        error("argument dimensions do not match")
-    end
+    n==length(b) || throw(DimensionMismatch())
     for j = 1:n
         bj = b[j]
         for i = 1:m
@@ -17,9 +15,7 @@ end
 
 function scale!(C::Matrix, b::Vector, A::Matrix)
     m, n = size(A)
-    if m != length(b)
-        error("argument dimensions do not match")
-    end
+    m==length(b) || throw(DimensionMismatch())
     for j=1:n
         for i=1:m
             C[i,j] = A[i,j]*b[i]
@@ -38,16 +34,14 @@ scale(b::Vector, A::Matrix) =
 
 dot{T<:Union(Float32, Float64)}(x::Vector{T}, y::Vector{T}) = BLAS.dot(x, y)
 function dot{T<:BLAS.BlasFloat, TI<:Integer}(x::Vector{T}, rx::Union(Range1{TI},Range{TI}), y::Vector{T}, ry::Union(Range1{TI},Range{TI}))
-    length(rx) != length(ry) ? error("ranges should be of same length") : true
+    length(rx)==length(ry) || throw(DimensionMismatch)
     if minimum(rx) < 1 || maximum(rx) > length(x) || minimum(ry) < 1 || maximum(ry) > length(y)
         throw(BoundsError())
     end
     BLAS.dot(length(rx), pointer(x)+(first(rx)-1)*sizeof(T), step(rx), pointer(y)+(first(ry)-1)*sizeof(T), step(ry))
 end
 function dot(x::AbstractVector, y::AbstractVector)
-    if length(x) != length(y)
-        error("argument dimensions do not match")
-    end
+    length(x)==length(y) || throw(DimensionMismatch())
     s = zero(eltype(x))*zero(eltype(y))
     for i=1:length(x)
         s += conj(x[i])*y[i]
@@ -226,7 +220,7 @@ function gemv{T<:BlasFloat}(y::StridedVector{T},
         (mA, nA) = size(A)
     end
 
-    if nA != length(x); error("*: argument shapes do not match"); end
+    nA==length(x) || throw(DimensionMismatch("*"))
     if mA != length(y); error("*: output size is incorrect"); end
     if mA == 0; return zeros(T, 0); end
     if nA == 0; return zeros(T, mA); end
@@ -291,7 +285,7 @@ function gemm_wrapper{T<:BlasFloat}(C::StridedVecOrMat{T}, tA, tB,
     mA, nA = lapack_size(tA, A)
     mB, nB = lapack_size(tB, B)
 
-    if nA != mB; error("*: argument shapes do not match"); end
+    nA==mB || throw(DimensionMismatch("*"))
 
     if mA == 0 || nA == 0 || nB == 0; return zeros(T, mA, nB); end
     if mA == 2 && nA == 2 && nB == 2; return matmul2x2(C,tA,tB,A,B); end
@@ -349,8 +343,8 @@ end
 function generic_matvecmul{T,S,R}(C::StridedVector{R}, tA, A::StridedMatrix{T}, B::StridedVector{S})
     mB = length(B)
     mA, nA = lapack_size(tA, A)
-    if nA != mB; error("*: argument shapes do not match"); end
-    if length(C) != mA; error("*: output size does not match"); end
+    mB==nA || throw(DimensionMismatch("*"))
+    mA==length(C) || throw(DimensionMismatch("*"))
     z = zero(R)
 
     Astride = size(A, 1)
@@ -407,8 +401,8 @@ const Cbuf = Array(Uint8, tilebufsize)
 function generic_matmatmul{T,S,R}(C::StridedVecOrMat{R}, tA, tB, A::StridedVecOrMat{T}, B::StridedMatrix{S})
     mA, nA = lapack_size(tA, A)
     mB, nB = lapack_size(tB, B)
-    if nA != mB; error("*: argument shapes do not match"); end
-    if size(C,1) != mA || size(C,2) != nB; error("*: output size is incorrect"); end
+    mB==nA || throw(DimensionMismatch("*"))
+    if size(C,1) != mA || size(C,2) != nB; throw(DimensionMismatch("*")); end
 
     if mA == nA == nB == 2; return matmul2x2(C, tA, tB, A, B); end
     if mA == nA == nB == 3; return matmul3x3(C, tA, tB, A, B); end

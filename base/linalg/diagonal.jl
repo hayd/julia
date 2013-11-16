@@ -44,9 +44,7 @@ end
 function \(D::Diagonal, A::Matrix)
     m, n = size(A)
     if m == 0 || n == 0 return A end
-    if m != length(D.diag)
-        error("argument dimensions do not match")
-    end
+    m==length(D.diag) || throw(DimensionMismatch())
     C = Array(promote_type(eltype(A),eltype(D.diag)),size(A))
     for i = 1:m
         di = D.diag[i]
@@ -59,9 +57,7 @@ end
 function /(A::Matrix, D::Diagonal)
     m, n = size(A)
     if m == 0 || n == 0 return A end
-    if n != length(D.diag)
-        error("argument dimensions do not match")
-    end
+    n==length(D.diag) || throw(DimensionMismatch())
     C = Array(promote_type(eltype(A),eltype(D.diag)),size(A))
     for j = 1:n
         dj = D.diag[j]

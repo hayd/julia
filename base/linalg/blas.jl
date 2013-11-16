@@ -203,7 +203,7 @@ for (fname, elty) in ((:dsyrk_,:Float64),
            m, n = size(C)
            if m != n error("syrk!: matrix C must be square") end
            nn = size(A, trans == 'N' ? 1 : 2)
-           if nn != n error("syrk!: dimension mismatch") end
+           if nn != n throw(DimensionMismatch("syrk!")) end
            k  = size(A, trans == 'N' ? 2 : 1)
            ccall(($(string(fname)),libblas), Void,
                  (Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt}, Ptr{BlasInt}, 
@@ -236,9 +236,9 @@ for (fname, elty) in ((:zherk_,:Complex128), (:cherk_,:Complex64))
        function herk!(uplo::BlasChar, trans::BlasChar, alpha::($elty), A::StridedVecOrMat{$elty},
                       beta::($elty), C::StridedMatrix{$elty})
            m, n = size(C)
-           if m != n error("syrk!: matrix C must be square") end
+           if m != n error("herk!: matrix C must be square") end
            nn = size(A, trans == 'N' ? 1 : 2)
-           if nn != n error("syrk!: dimension mismatch") end
+           if nn != n throw DimensionMismatch("herk!") end
            k  = size(A, trans == 'N' ? 2 : 1)
            ccall(($(string(fname)),libblas), Void,
                  (Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt}, Ptr{BlasInt}, 
@@ -349,7 +349,7 @@ for (gemm, gemv, elty) in
            k = size(A, transA == 'N' ? 2 : 1)
            n = size(B, transB == 'N' ? 2 : 1)
            if m != size(C,1) || n != size(C,2)
-               error("gemm!: mismatched dimensions")
+               throw(DimensionMismatch("gemm!"))
            end
            ccall(($(string(gemm)),libblas), Void,
                  (Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
@@ -421,7 +421,7 @@ for (mfname, vfname, elty) in ((:dsymm_,:dsymv_,:Float64),
            m, n = size(C)
            k, j = size(A)
            if k != j error("symm!: matrix A is $k by $j but must be square") end
-           if j != (side == 'L' ? m : n) || size(B,2) != n error("symm!: Dimension mismatch") end
+           if j != (side == 'L' ? m : n) || size(B,2) != n throw(DimensionMismatch("symm!")) end
            ccall(($(string(mfname)),libblas), Void,
                  (Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
                   Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),
@@ -446,8 +446,8 @@ for (mfname, vfname, elty) in ((:dsymm_,:dsymv_,:Float64),
        function symv!(uplo::BlasChar, alpha::($elty), A::StridedMatrix{$elty}, x::StridedVector{$elty},
                       beta::($elty), y::StridedVector{$elty})
            m, n = size(A)
-           if m != n error("symm!: matrix A is $m by $n but must be square") end
-           if m != length(x) || m != length(y) error("symm!: dimension mismatch") end
+           if m != n error("symv!: matrix A is $m by $n but must be square") end
+           if m != length(x) || m != length(y) throw(DimensionMismatch("symv!")) end
            ccall(($(string(vfname)),libblas), Void,
                  (Ptr{Uint8}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),

@@ -7,7 +7,7 @@ type SymTridiagonal{T<:BlasFloat} <: AbstractMatrix{T}
     dv::Vector{T}                        # diagonal
     ev::Vector{T}                        # subdiagonal
     function SymTridiagonal(dv::Vector{T}, ev::Vector{T})
-        if length(ev) != length(dv) - 1 error("dimension mismatch") end
+        length(ev)==length(dv)-1 || throw(DimensionMismatch())
         new(dv,ev)
     end
 end
@@ -193,7 +193,7 @@ function solve(x::AbstractArray, xrng::Ranges{Int}, M::Tridiagonal, rhs::Abstrac
     d = M.d
     N = length(d)
     if length(xrng) != N || length(rhsrng) != N
-        error("dimension mismatch")
+        throw(DimensionMismatch())
     end
     dl = M.dl
     du = M.du
@@ -241,12 +241,8 @@ function solve(M::Tridiagonal, rhs::StridedVector)
 end
 
 function solve(X::StridedMatrix, M::Tridiagonal, B::StridedMatrix)
-    if size(B, 1) != size(M, 1)
-        error("dimension mismatch")
-    end
-    if size(X) != size(B)
-        error("dimension mismatch in output")
-    end
+    size(B, 1) == size(M, 1) || throw(DimensionMismatch())
+    size(X) == size(B) || throw(DimensionMismatch())
     m, n = size(B)
     for j = 1:n
         r = Range1((j-1)*m+1,m)
@@ -287,12 +283,8 @@ end
 mult(x::StridedVector, M::Tridiagonal, v::StridedVector) = mult(x, 1:length(x), M, v, 1:length(v))
 
 function mult(X::StridedMatrix, M::Tridiagonal, B::StridedMatrix)
-    if size(B, 1) != size(M, 1)
-        error("dimension mismatch")
-    end
-    if size(X) != size(B)
-        error("dimension mismatch in output")
-    end
+    size(B, 1) == size(M, 1) || throw(DimensionMismatch())
+    size(X) != size(B) || throw(DimensionMismatch())
     m, n = size(B)
     for j = 1:n
         r = Range1((j-1)*m+1,m)
@@ -339,7 +331,7 @@ type LUTridiagonal{T} <: Factorization{T}
     #                        du2::Vector{T}, ipiv::Vector{BlasInt})
     #     n = length(d)
     #     if length(dl) != n - 1 || length(du) != n - 1 || length(ipiv) != n || length(du2) != n-2
-    #         error("LUTridiagonal: dimension mismatch")
+    #         throw(DimensionMismatch("LUTridiagonal")
     #     end
     #     new(dl, d, du, du2, ipiv)
     # end

@@ -15,7 +15,7 @@ type Woodbury{T} <: AbstractMatrix{T}
         N = size(A, 1)
         k = size(U, 2)
         if size(A, 2) != N || size(U, 1) != N || size(V, 1) != k || size(V, 2) != N
-            error("Sizes do not match")
+            throw(DimensionMismatch())
         end
         if k > 1
             if size(C, 1) != k || size(C, 2) != k
@@ -34,7 +34,6 @@ type Woodbury{T} <: AbstractMatrix{T}
 end
 
 Woodbury{T}(A::AbstractMatrix{T}, U::Matrix{T}, C, V::Matrix{T}) = Woodbury{T}(A, U, C, V)
-
 Woodbury{T}(A::AbstractMatrix{T}, U::Vector{T}, C, V::Matrix{T}) = Woodbury{T}(A, reshape(U, length(U), 1), C, V)
 
 size(W::Woodbury) = size(W.A)

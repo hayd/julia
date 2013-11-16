@@ -8,14 +8,12 @@ type Bidiagonal{T} <: AbstractMatrix{T}
     ev::Vector{T} # sub/super diagonal
     isupper::Bool # is upper bidiagonal (true) or lower (false)
     function Bidiagonal{T}(dv::Vector{T}, ev::Vector{T}, isupper::Bool)
-        if length(ev)!=length(dv)-1 error("dimension mismatch") end
-        new(dv, ev, isupper)
+        length(ev)==length(dv)-1 ? new(dv, ev, isupper) : throw(DimensionMismatch())
     end
 end
 
 Bidiagonal{T<:BlasFloat}(dv::Vector{T}, ev::Vector{T}, isupper::Bool)=Bidiagonal{T}(copy(dv), copy(ev), isupper)
 Bidiagonal{T}(dv::Vector{T}, ev::Vector{T}) = error("Did you want an upper or lower Bidiagonal? Try again with an additional true (upper) or false (lower) argument.")
-
 
 #Convert from BLAS uplo flag to boolean internal
 function Bidiagonal{T<:BlasFloat}(dv::Vector{T}, ev::Vector{T}, uplo::BlasChar)

@@ -1,8 +1,6 @@
 function dot(x::BitVector, y::BitVector)
     # simplest way to mimic Array dot behavior
-    if length(x) != length(y)
-        error("argument dimensions do not match")
-    end
+    length(x) == length(y) || throw(DimensionMismatch())
     s = 0
     xc = x.chunks
     yc = y.chunks
@@ -19,7 +17,7 @@ end
     #(mA, nA) = size(A)
     #(mB, nB) = size(B)
     #C = falses(nA, nB)
-    #if mA != mB; error("*: argument shapes do not match"); end
+    #if mA != mB; throw(DimensionMismatch()) end
     #if mA == 0; return C; end
     #col_ch = num_bit_chunks(mA)
     ## TODO: avoid using aux chunks and copy (?)

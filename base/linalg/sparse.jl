@@ -11,8 +11,8 @@ end
 (*){TvA,TiA}(A::SparseMatrixCSC{TvA,TiA}, X::BitArray{1}) = invoke(*, (SparseMatrixCSC, AbstractVector), A, X)
 # In matrix-vector multiplication, the correct orientation of the vector is assumed.
 function A_mul_B!(α::Number, A::SparseMatrixCSC, x::AbstractVector, β::Number, y::AbstractVector)
-    A.n == length(x) || throw(DimensionMismatch(""))
-    A.m == length(y) || throw(DimensionMismatch(""))
+    A.n == length(x) || throw(DimensionMismatch())
+    A.m == length(y) || throw(DimensionMismatch())
     for i = 1:A.m; y[i] *= β; end
     nzv = A.nzval
     rv = A.rowval
@@ -30,7 +30,7 @@ end
 # In vector-matrix multiplication, the correct orientation of the vector is assumed.
 # XXX: this is wrong (i.e. not what Arrays would do)!!
 function (*){T1,T2}(X::AbstractVector{T1}, A::SparseMatrixCSC{T2})
-    if A.m != length(X); error("mismatched dimensions"); end
+    A.m==length(X) || throw(DimensionMismatch())
     Y = zeros(promote_type(T1,T2), A.n)
     nzv = A.nzval
     rv = A.rowval
@@ -45,7 +45,7 @@ end
 (*){TvA,TiA}(A::SparseMatrixCSC{TvA,TiA}, X::BitArray{2}) = invoke(*, (SparseMatrixCSC, AbstractMatrix), A, X)
 function (*){TvA,TiA,TX}(A::SparseMatrixCSC{TvA,TiA}, X::AbstractMatrix{TX})
     mX, nX = size(X)
-    if A.n != mX; error("mismatched dimensions"); end
+    A.n==mX || throw(DimensionMismatch())
     Y = zeros(promote_type(TvA,TX), A.m, nX)
     nzv = A.nzval
     rv = A.rowval
@@ -64,7 +64,7 @@ end
 (*){TvA,TiA}(X::BitArray{2}, A::SparseMatrixCSC{TvA,TiA}) = invoke(*, (AbstractMatrix, SparseMatrixCSC), X, A)
 function (*){TX,TvA,TiA}(X::AbstractMatrix{TX}, A::SparseMatrixCSC{TvA,TiA})
     mX, nX = size(X)
-    if nX != A.m; error("mismatched dimensions"); end
+    nX == A.m || throw(DimensionMismatch())
     Y = zeros(promote_type(TX,TvA), mX, A.n)
     for multivec_row = 1:mX
         for col = 1 : A.n
@@ -82,7 +82,7 @@ end
 function (*){Tv,Ti}(A::SparseMatrixCSC{Tv,Ti}, B::SparseMatrixCSC{Tv,Ti})
     mA, nA = size(A)
     mB, nB = size(B)
-    if nA != mB; error("mismatched dimensions"); end
+    nA==mB || throw(DimensionMismatch())
 
     colptrA = A.colptr; rowvalA = A.rowval; nzvalA = A.nzval
     colptrB = B.colptr; rowvalB = B.rowval; nzvalB = B.nzval
@@ -422,7 +422,7 @@ inv(A::SparseMatrixCSC) = error("The inverse of a sparse matrix can often be den
 function scale!{Tv,Ti}(C::SparseMatrixCSC{Tv,Ti}, A::SparseMatrixCSC, b::Vector)
     m, n = size(A)
     if n != length(b) || size(A) != size(C)
-        error("argument dimensions do not match")
+        throw(DimensionMismatch())
     end
     numnz = nnz(A)
     C.colptr = convert(Array{Ti}, A.colptr)
@@ -437,7 +437,7 @@ end
 function scale!{Tv,Ti}(C::SparseMatrixCSC{Tv,Ti}, b::Vector, A::SparseMatrixCSC)
     m, n = size(A)
     if n != length(b) || size(A) != size(C)
-        error("argument dimensions do not match")
+        throw(DimensionMismatch())
     end
     numnz = nnz(A)
     C.colptr = convert(Array{Ti}, A.colptr)

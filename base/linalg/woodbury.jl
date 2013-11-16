@@ -19,7 +19,7 @@ type Woodbury{T} <: AbstractMatrix{T}
         end
         if k > 1
             if size(C, 1) != k || size(C, 2) != k
-                error("Size of C is incorrect")
+                throw(DimensionMismatch())
             end
         end
         Cp = inv(inv(C) + V*(A\U))
@@ -58,9 +58,7 @@ full{T}(W::Woodbury{T}) = convert(Matrix{T}, W)
 convert{T}(::Type{Matrix{T}}, W::Woodbury{T}) = full(W.A) + W.U*W.C*W.V
 
 function similar(W::Woodbury, T, dims::Dims)
-    if length(dims) != 2 || dims[1] != dims[2]
-        error("Woodbury matrices must be square")
-    end
+    (length(dims) == 2 && dims[1] == dims[2] ) || throw(DimensionMismatch())
     n = size(W, 1)
     k = size(W.U, 2)
     return Woodbury{T}(similar(W.A), Array(T, n, k), Array(T, k, k), Array(T, k, n))
@@ -107,12 +105,8 @@ function solve(W::Woodbury, rhs::AbstractVector)
 end
 
 function solve(X::StridedMatrix, W::Woodbury, B::StridedMatrix)
-    if size(B, 1) != size(W, 1)
-        error("dimension mismatch")
-    end
-    if size(X) != size(B)
-        error("dimension mismatch in output")
-    end
+    size(B, 1) == size(W, 1) || throw(DimensionMismatch())
+    size(X) != size(B) || throw(DimensionMismatch())
     m, n = size(B)
     r = 1:m
     for j = 1:n

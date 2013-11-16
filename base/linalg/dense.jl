@@ -132,9 +132,7 @@ end
 diagm(x::Number) = (X = Array(typeof(x),1,1); X[1,1] = x; X)
 
 function trace{T}(A::Matrix{T})
-    if size(A,1) != size(A,2)
-        error("expected square matrix")
-    end
+    @assertsquare A
     t = zero(T)
     for i=1:minimum(size(A))
         t += A[i,i]
@@ -185,9 +183,7 @@ function ^(A::Matrix, p::Number)
             return Base.power_by_squaring(A, ip)
         end
     end
-    if size(A,1) != size(A,2)
-        error("matrix must be square")
-    end
+    @assertsquare A
     (v, X) = eig(A)
     if any(v.<0)
         v = complex(v)
@@ -348,8 +344,7 @@ expm{T<:Integer}(A::StridedMatrix{T}) = expm!(float(A))
 expm(x::Number) = exp(x)
 
 function sqrtm{T<:Real}(A::StridedMatrix{T}, cond::Bool)
-    m, n = size(A)
-    if m != n error("DimentionMismatch") end
+    n = @assertsquare A
     if issym(A) 
         return sqrtm(Symmetric(A), cond)
     else
@@ -377,8 +372,7 @@ function sqrtm{T<:Real}(A::StridedMatrix{T}, cond::Bool)
     end
 end
 function sqrtm{T<:Complex}(A::StridedMatrix{T}, cond::Bool)
-    m, n = size(A)
-    if m != n error("DimentionMismatch") end
+    n = @assertsquare A
     if ishermitian(A) 
         return sqrtm(Hermitian(A), cond)
     else

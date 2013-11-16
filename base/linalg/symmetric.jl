@@ -5,8 +5,8 @@ type Symmetric{T<:Number} <: AbstractMatrix{T}
     uplo::Char
 end
 function Symmetric{T<:Number}(S::Matrix{T}, uplo::Symbol)
-    if size(S, 1) != size(S, 2) throw(DimensionMismatch("Matrix must be square")); end
-    return Symmetric(S, string(uplo)[1])
+    @assertsquare S
+    Symmetric(S, string(uplo)[1])
 end
 Symmetric(A::StridedMatrix) = Symmetric(A, :U)
 

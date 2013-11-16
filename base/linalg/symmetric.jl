@@ -43,7 +43,7 @@ eigmin(A::Symmetric) = eigvals(A, 1, 1)[1]
 
 function eigfact!{T<:BlasReal}(A::Symmetric{T}, B::Symmetric{T})
     vals, vecs, _ = LAPACK.sygvd!(1, 'V', A.uplo, A.S, B.uplo == A.uplo ? B.S : B.S')
-    return GeneralizedEigen(vals, vecs)
+    GeneralizedEigen(vals, vecs)
 end
 eigfact(A::Symmetric, B::Symmetric) = eigfact!(copy(A), copy(B))
 eigvals!{T<:BlasReal}(A::Symmetric{T}, B::Symmetric{T}) = LAPACK.sygvd!(1, 'N', A.uplo, A.S, B.uplo == A.uplo ? B.S : B.S')[1]
@@ -62,9 +62,5 @@ function sqrtm{T<:Real}(A::Symmetric{T}, cond::Bool)
         zc = complex(F[:vectors])
         retmat = symmetrize!(scale(zc, vsqrt) * zc')
     end
-    if cond
-        return retmat, norm(vsqrt, Inf)^2/norm(F[:values], Inf)
-    else
-        return retmat
-    end
+    cond ? (retmat, norm(vsqrt, Inf)^2/norm(F[:values], Inf)) : retmat
 end

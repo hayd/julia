@@ -36,23 +36,26 @@ isposdef(D::Diagonal) = all(D.diag .> 0)
 \(Da::Diagonal, Db::Diagonal) = Diagonal(Db.diag ./ Da.diag )
 /(Da::Diagonal, Db::Diagonal) = Diagonal(Da.diag ./ Db.diag )
 function A_ldiv_B!(D::Diagonal, v::Vector)
-    for i in 1:length(D.diag)
-        v[i] /= D.diag[i]
+    for i=1:length(D.diag)
+        d = D.diag[i]
+        d==0 && throw(SingularException())
+        v[i] /= d
     end
-    return v
+    v
 end
 function \(D::Diagonal, A::Matrix)
     m, n = size(A)
     if m == 0 || n == 0 return A end
     m==length(D.diag) || throw(DimensionMismatch())
     C = Array(promote_type(eltype(A),eltype(D.diag)),size(A))
-    for i = 1:m
+    for i=1:m
         di = D.diag[i]
+        di==0 && throw(SingularException())
         for j = 1:n
             C[i,j] = A[i,j] / di
         end
     end
-    return C
+    C
 end
 function /(A::Matrix, D::Diagonal)
     m, n = size(A)
@@ -61,11 +64,12 @@ function /(A::Matrix, D::Diagonal)
     C = Array(promote_type(eltype(A),eltype(D.diag)),size(A))
     for j = 1:n
         dj = D.diag[j]
+        dj==0 && throw(SingularException())
         for i = 1:m
             C[i,j] = A[i,j] / dj
         end
     end
-    return C
+    C
 end
 
 conj(D::Diagonal) = Diagonal(conj(D.diag))
@@ -78,10 +82,10 @@ logdet(D::Diagonal) = sum(log(D.diag))
 function inv{T<:BlasFloat}(D::Diagonal{T})
     Di = similar(D.diag)
     for i in 1:length(D.diag)
-        if D.diag[i] != 0 || throw(SingularException(i)) end
+        D.diag[i] == 0 && throw(SingularException(i))
         Di[i] = 1 / D.diag[i]
     end
-    return Diagonal(Di)
+    Diagonal(Di)
 end
 inv(D::Diagonal) = inv(Diagonal(float(D.diag)))
 

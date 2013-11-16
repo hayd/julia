@@ -101,7 +101,7 @@ function Tridiagonal{T<:Number}(dl::Vector{T}, d::Vector{T}, du::Vector{T})
     M.dl = copy(dl)
     M.d = copy(d)
     M.du = copy(du)
-    return M
+    M
 end
 function Tridiagonal{Tl<:Number, Td<:Number, Tu<:Number}(dl::Vector{Tl}, d::Vector{Td}, du::Vector{Tu})
     R = promote(Tl, Td, Tu)
@@ -130,13 +130,13 @@ function convert{T}(::Type{Matrix{T}}, M::Tridiagonal{T})
         A[i+1,i] = M.dl[i]
         A[i,i+1] = M.du[i]
     end
-    return A
+    A
 end
 function similar(M::Tridiagonal, T, dims::Dims)
     if length(dims) != 2 || dims[1] != dims[2]
-        error("Tridiagonal matrices must be square")
+        throw(DimensionMismatch("Tridiagonal matrices must be square"))
     end
-    return Tridiagonal{T}(dims[1])
+    Tridiagonal{T}(dims[1])
 end
 
 # Operations on Tridiagonal matrices
@@ -230,16 +230,12 @@ function solve(x::AbstractArray, xrng::Ranges{Int}, M::Tridiagonal, rhs::Abstrac
         x[ix] = xlast
         ix -= xstride
     end
-    return x
+    x
 end
 
 solve(x::StridedVector, M::Tridiagonal, rhs::StridedVector) = solve(x, 1:length(x), M, rhs, 1:length(rhs))
-
-function solve(M::Tridiagonal, rhs::StridedVector)
-    x = similar(rhs)
-    solve(x, M, rhs)
-end
-
+solve(M::Tridiagonal, rhs::StridedVector) = solve(similar(rhs), M, rhs)
+solve(M::Tridiagonal, B::StridedMatrix) = solve(similar(B), M, B)
 function solve(X::StridedMatrix, M::Tridiagonal, B::StridedMatrix)
     size(B, 1) == size(M, 1) || throw(DimensionMismatch())
     size(X) == size(B) || throw(DimensionMismatch())
@@ -248,12 +244,7 @@ function solve(X::StridedMatrix, M::Tridiagonal, B::StridedMatrix)
         r = Range1((j-1)*m+1,m)
         solve(X, r, M, B, r)
     end
-    return X
-end
-
-function solve(M::Tridiagonal, B::StridedMatrix)
-    X = similar(B)
-    solve(X, M, B)
+    X
 end
 
 # User-friendly solver
@@ -277,29 +268,25 @@ function mult(x::AbstractArray, xrng::Ranges{Int}, M::Tridiagonal, v::AbstractAr
         vi += vstride
     end
     x[xi] = dl[N-1]*v[vi] + d[N]*v[vi+vstride]
-    return x
+    x
 end
 
 mult(x::StridedVector, M::Tridiagonal, v::StridedVector) = mult(x, 1:length(x), M, v, 1:length(v))
 
 function mult(X::StridedMatrix, M::Tridiagonal, B::StridedMatrix)
     size(B, 1) == size(M, 1) || throw(DimensionMismatch())
-    size(X) != size(B) || throw(DimensionMismatch())
+    size(X) == size(B) || throw(DimensionMismatch())
     m, n = size(B)
     for j = 1:n
         r = Range1((j-1)*m+1,m)
         mult(X, r, M, B, r)
     end
-    return X
+    X
 end
 
 mult(X::StridedMatrix, M1::Tridiagonal, M2::Tridiagonal) = mult(X, M1, full(M2))
 
-function *(M::Tridiagonal, B::Union(StridedVector,StridedMatrix))
-    X = similar(B)
-    mult(X, M, B)
-end
-
+*(M::Tridiagonal, B::Union(StridedVector,StridedMatrix)) = mult(similar(B), M, B)
 *(A::Tridiagonal, B::Tridiagonal) = A*full(B)
 
 #### Factorizations for Tridiagonal ####
@@ -307,8 +294,7 @@ type LDLTTridiagonal{T<:BlasFloat,S<:BlasFloat} <: Factorization{T}
     D::Vector{S}
     E::Vector{T}
     function LDLTTridiagonal(D::Vector{S}, E::Vector{T})
-        if typeof(real(E[1])) != eltype(D) error("Wrong eltype") end
-        new(D, E)
+        typeof(real(E[1])) == eltype(D) ? new(D, E) : error("Wrong eltype")
     end
 end
 

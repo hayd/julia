@@ -5,7 +5,7 @@ function (*){TvA,TiA,TvB,TiB}(A::SparseMatrixCSC{TvA,TiA}, B::SparseMatrixCSC{Tv
     Ti = promote_type(TiA, TiB)
     A  = convert(SparseMatrixCSC{Tv,Ti}, A)
     B  = convert(SparseMatrixCSC{Tv,Ti}, B)
-    return A * B
+    A * B
 end
 
 (*){TvA,TiA}(A::SparseMatrixCSC{TvA,TiA}, X::BitArray{1}) = invoke(*, (SparseMatrixCSC, AbstractVector), A, X)
@@ -22,7 +22,7 @@ function A_mul_B!(α::Number, A::SparseMatrixCSC, x::AbstractVector, β::Number,
             y[rv[k]] += nzv[k]*αx
         end
     end
-    return y
+    y
 end
 (*){TA,S,Tx}(A::SparseMatrixCSC{TA,S}, x::AbstractVector{Tx}) = A_mul_B!(1, A, x, 0, zeros(promote_type(TA,Tx), A.m))
 
@@ -34,12 +34,10 @@ function (*){T1,T2}(X::AbstractVector{T1}, A::SparseMatrixCSC{T2})
     Y = zeros(promote_type(T1,T2), A.n)
     nzv = A.nzval
     rv = A.rowval
-    for col = 1 : A.n
-        for k = A.colptr[col] : (A.colptr[col+1]-1)
-            Y[col] += X[rv[k]] * nzv[k]
-        end
+    for col =1:A.n, k=A.colptr[col]:(A.colptr[col+1]-1)
+        Y[col] += X[rv[k]] * nzv[k]
     end
-    return Y
+    Y
 end
 
 (*){TvA,TiA}(A::SparseMatrixCSC{TvA,TiA}, X::BitArray{2}) = invoke(*, (SparseMatrixCSC, AbstractMatrix), A, X)
@@ -50,15 +48,13 @@ function (*){TvA,TiA,TX}(A::SparseMatrixCSC{TvA,TiA}, X::AbstractMatrix{TX})
     nzv = A.nzval
     rv = A.rowval
     colptr = A.colptr
-    for multivec_col = 1:nX
-        for col = 1 : A.n
-            Xc = X[col, multivec_col]
-            @inbounds for k = colptr[col] : (colptr[col+1]-1)
-                Y[rv[k], multivec_col] += nzv[k] * Xc
-            end
+    for multivec_col=1:nX, col=1:A.n
+        Xc = X[col, multivec_col]
+        @inbounds for k = colptr[col] : (colptr[col+1]-1)
+           Y[rv[k], multivec_col] += nzv[k] * Xc
         end
     end
-    return Y
+    Y
 end
 
 (*){TvA,TiA}(X::BitArray{2}, A::SparseMatrixCSC{TvA,TiA}) = invoke(*, (AbstractMatrix, SparseMatrixCSC), X, A)
@@ -66,14 +62,10 @@ function (*){TX,TvA,TiA}(X::AbstractMatrix{TX}, A::SparseMatrixCSC{TvA,TiA})
     mX, nX = size(X)
     nX == A.m || throw(DimensionMismatch())
     Y = zeros(promote_type(TX,TvA), mX, A.n)
-    for multivec_row = 1:mX
-        for col = 1 : A.n
-            for k = A.colptr[col] : (A.colptr[col+1]-1)
-                Y[multivec_row, col] += X[multivec_row, A.rowval[k]] * A.nzval[k]
-            end
-        end
+    for multivec_row=1:mX, col=1:A.n, k=A.colptr[col]:(A.colptr[col+1]-1)
+        Y[multivec_row, col] += X[multivec_row, A.rowval[k]] * A.nzval[k]
     end
-    return Y
+    Y
 end
 
 # Sparse matrix multiplication as described in [Gustavson, 1978]:
@@ -133,8 +125,6 @@ function (*){Tv,Ti}(A::SparseMatrixCSC{Tv,Ti}, B::SparseMatrixCSC{Tv,Ti})
     Cunsorted = SparseMatrixCSC(mA, nB, colptrC, rowvalC, nzvalC)
     Ct = Cunsorted.'
     Ctt = Base.SparseMatrix.transpose!(Ct, SparseMatrixCSC(mA, nB, colptrC, rowvalC, nzvalC))
-
-    return Ctt
 end
 
 ## triu, tril
@@ -148,9 +138,7 @@ function triu{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer)
     end
     for col = max(k+1,1) : n
         for c1 = S.colptr[col] : S.colptr[col+1]-1
-            if S.rowval[c1] > col - k
-                break;
-            end
+            S.rowval[c1] > col - k && break
             nnz += 1
         end
         colptr[col+1] = nnz+1
@@ -166,7 +154,7 @@ function triu{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer)
             c1 += 1
         end
     end
-    return A
+    A
 end
 triu{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer) = triu(S, int(k))
 
@@ -178,9 +166,7 @@ function tril{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer)
     for col = 1 : min(n, m+k)
         l1 = S.colptr[col+1]-1
         for c1 = 0 : (l1 - S.colptr[col])
-            if S.rowval[l1 - c1] < col - k
-                break;
-            end
+            S.rowval[l1 - c1] < col - k && break
             nnz += 1
         end
         colptr[col+1] = nnz+1
@@ -200,7 +186,7 @@ function tril{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer)
             c1 -= 1
         end
     end
-    return A
+    A
 end
 tril{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer) = tril(S, int(k))
 
@@ -208,9 +194,7 @@ tril{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti}, k::Integer) = tril(S, int(k))
 
 function sparse_diff1{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti})
     m,n = size(S)
-    if m <= 1
-        return SparseMatrixCSC{Tv,Ti}(0, n, ones(n+1), Ti[], Tv[])
-    end
+    m > 1 && return SparseMatrixCSC{Tv,Ti}(0, n, ones(n+1), Ti[], Tv[])
     colptr = Array(Ti, n+1)
     numnz = 2 * nnz(S) # upper bound; will shrink later
     rowval = Array(Ti, numnz)
@@ -226,9 +210,7 @@ function sparse_diff1{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti})
             if row > 1
                 if row == last_row + 1
                     nzval[numnz] += val
-                    if nzval[numnz] == zero(Tv)
-                        numnz -= 1
-                    end
+                    nzval[numnz]==zero(Tv) && (numnz -= 1)
                 else
                     numnz += 1
                     rowval[numnz] = row - 1
@@ -247,7 +229,7 @@ function sparse_diff1{Tv,Ti}(S::SparseMatrixCSC{Tv,Ti})
     end
     splice!(rowval, numnz+1:length(rowval))
     splice!(nzval, numnz+1:length(nzval))
-    return SparseMatrixCSC{Tv,Ti}(m-1, n, colptr, rowval, nzval)
+    SparseMatrixCSC{Tv,Ti}(m-1, n, colptr, rowval, nzval)
 end
 
 function sparse_diff2{Tv,Ti}(a::SparseMatrixCSC{Tv,Ti})
@@ -267,9 +249,7 @@ function sparse_diff2{Tv,Ti}(a::SparseMatrixCSC{Tv,Ti})
     ptrS = 1
     colptr[1] = 1
 
-    if n == 0
-        return SparseMatrixCSC{Tv,Ti}(m, n, colptr, rowval, nzval)
-    end
+    n == 0 || return SparseMatrixCSC{Tv,Ti}(m, n, colptr, rowval, nzval)
 
     startA = colptr_a[1]
     stopA = colptr_a[2]
@@ -339,17 +319,10 @@ function sparse_diff2{Tv,Ti}(a::SparseMatrixCSC{Tv,Ti})
     end
     splice!(rowval, ptrS:length(rowval))
     splice!(nzval, ptrS:length(nzval))
-    return SparseMatrixCSC{Tv,Ti}(m, n-1, colptr, rowval, nzval)
+    SparseMatrixCSC{Tv,Ti}(m, n-1, colptr, rowval, nzval)
 end
 
-function diff(a::SparseMatrixCSC, dim::Integer)
-    if dim == 1
-        sparse_diff1(a)
-    else
-        sparse_diff2(a)
-    end
-end
-
+diff(a::SparseMatrixCSC, dim::Integer)= dim==1 ? sparse_diff1(a) : sparse_diff2(a)
 
 ## norm and rank
 
@@ -406,8 +379,7 @@ function kron{Tv,Ti}(a::SparseMatrixCSC{Tv,Ti}, b::SparseMatrixCSC{Tv,Ti})
             end
         end
     end
-
-    return SparseMatrixCSC{Tv,Ti}(m, n, colptr, rowval, nzval)
+    SparseMatrixCSC{Tv,Ti}(m, n, colptr, rowval, nzval)
 end
 
 ## det, inv, cond
@@ -431,7 +403,7 @@ function scale!{Tv,Ti}(C::SparseMatrixCSC{Tv,Ti}, A::SparseMatrixCSC, b::Vector)
     for col = 1:n, p = A.colptr[col]:(A.colptr[col+1]-1)
         C.nzval[p] = A.nzval[p] * b[col]
     end
-    return C
+    C
 end
 
 function scale!{Tv,Ti}(C::SparseMatrixCSC{Tv,Ti}, b::Vector, A::SparseMatrixCSC)
@@ -446,7 +418,7 @@ function scale!{Tv,Ti}(C::SparseMatrixCSC{Tv,Ti}, b::Vector, A::SparseMatrixCSC)
     for col = 1:n, p = A.colptr[col]:(A.colptr[col+1]-1)
         C.nzval[p] = A.nzval[p] * b[A.rowval[p]]
     end
-    return C
+    C
 end
 
 scale{Tv,Ti,T}(A::SparseMatrixCSC{Tv,Ti}, b::Vector{T}) =

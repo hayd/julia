@@ -13,15 +13,10 @@ function bkfact!{T<:BlasReal}(A::StridedMatrix{T}, uplo::Symbol)
     BunchKaufman(LD, ipiv, string(uplo)[1], true)
 end
 function bkfact!{T<:BlasReal}(A::StridedMatrix{T}, uplo::Symbol, symmetric::Bool)
-	if symmetric return bkfact!(A, uplo) end
-	error("The Bunch-Kaufman decomposition is only valid for symmetric matrices")
+    symmetric ? bkfact!(A, uplo) : error("The Bunch-Kaufman decomposition is only valid for symmetric matrices")
 end
 function bkfact!{T<:BlasComplex}(A::StridedMatrix{T}, uplo::Symbol, symmetric::Bool)
-    if symmetric
-    	LD, ipiv = LAPACK.sytrf!(string(uplo)[1] , A)
-    else
-    	LD, ipiv = LAPACK.hetrf!(string(uplo)[1] , A)
-    end
+    LD, ipiv = (symmetric ? LAPACK.sytrf! : LAPACK.hetrf!)(string(uplo)[1] , A)
     BunchKaufman(LD, ipiv, string(uplo)[1], symmetric)
 end
 bkfact!{T<:BlasComplex}(A::StridedMatrix{T}, uplo::Symbol) = bkfact!(A, uplo, issym(A))
@@ -35,21 +30,17 @@ size(B::BunchKaufman,d::Integer) = size(B.LD,d)
 issym(B::BunchKaufman) = B.symmetric
 ishermitian(B::BunchKaufman) = !B.symmetric
 
-function inv{T<:BlasReal}(B::BunchKaufman{T})
-    symmetrize_conj!(LAPACK.sytri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
-end
+inv{T<:BlasReal}(B::BunchKaufman{T})=symmetrize_conj!(LAPACK.sytri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
+
 function inv{T<:BlasComplex}(B::BunchKaufman{T})
-	if issym(B)
-    	symmetrize!(LAPACK.sytri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
+    if issym(B)
+        symmetrize!(LAPACK.sytri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
     else
-    	symmetrize_conj!(LAPACK.hetri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
-	end
+        symmetrize_conj!(LAPACK.hetri!(B.uplo, copy(B.LD), B.ipiv), B.uplo)
+    end
 end
 
 \{T<:BlasReal}(B::BunchKaufman{T}, R::StridedVecOrMat{T}) = LAPACK.sytrs!(B.uplo, B.LD, B.ipiv, copy(R))
 function \{T<:BlasComplex}(B::BunchKaufman{T}, R::StridedVecOrMat{T})
-	if issym(B)
-    	return LAPACK.sytrs!(B.uplo, B.LD, B.ipiv, copy(R))
-    end
-    return LAPACK.hetrs!(B.uplo, B.LD, B.ipiv, copy(R))
+    (issym(B) ? LAPACK.sytrs! : LAPACK.hetrs!)(B.uplo, B.LD, B.ipiv, copy(R))
 end

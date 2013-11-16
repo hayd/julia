@@ -51,7 +51,7 @@ for (fname, elty) in ((:dscal_,:Float64),    (:sscal_,:Float32),
             ccall(($(string(fname)),libblas), Void,
                   (Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),
                   &n, &DA, DX, &incx)
-            return DX
+            DX
         end
     end
 end
@@ -66,7 +66,7 @@ for (fname, elty, celty) in ((:sscal_, :Float32, :Complex64),
             ccall(($(string(fname)),libblas), Void,
                   (Ptr{BlasInt}, Ptr{$elty}, Ptr{$celty}, Ptr{BlasInt}),
                   &(2*n), &DA, DX, &incx)
-            return DX
+            DX
         end
     end
 end
@@ -165,18 +165,14 @@ for (fname, elty) in ((:daxpy_,:Float64),
     end
 end
 function axpy!{T,Ta<:Number}(alpha::Ta, x::Array{T}, y::Array{T})
-    if length(x) != length(y)
-        error("Inputs should be of the same length")
-    end
-    return axpy!(length(x), convert(T,alpha), x, 1, y, 1)
+    length(x)==length(y) || throw(DimensionMismatch())
+    axpy!(length(x), convert(T,alpha), x, 1, y, 1)
 end
 
 function axpy!{T,Ta<:Number,Ti<:Integer}(alpha::Ta, x::Array{T}, rx::Union(Range1{Ti},Range{Ti}),
                                          y::Array{T}, ry::Union(Range1{Ti},Range{Ti}))
 
-    if length(rx) != length(ry)
-        error("Ranges should be of the same length")
-    end
+    length(rx)==length(ry) || throw(DimensionMismatch())
 
     if minimum(rx) < 1 || maximum(rx) > length(x) || minimum(ry) < 1 || maximum(ry) > length(y)
         throw(BoundsError())
@@ -235,10 +231,9 @@ for (fname, elty) in ((:zherk_,:Complex128), (:cherk_,:Complex64))
        #       COMPLEX A(LDA,*),C(LDC,*)
        function herk!(uplo::BlasChar, trans::BlasChar, alpha::($elty), A::StridedVecOrMat{$elty},
                       beta::($elty), C::StridedMatrix{$elty})
-           m, n = size(C)
-           if m != n error("herk!: matrix C must be square") end
-           nn = size(A, trans == 'N' ? 1 : 2)
-           if nn != n throw DimensionMismatch("herk!") end
+           n, m = size(C)
+           n==m || throw(DimensionMismatch("herk!"))
+           n == size(A, trans == 'N' ? 1 : 2) || throw(DimensionMismatch("herk!"))
            k  = size(A, trans == 'N' ? 2 : 1)
            ccall(($(string(fname)),libblas), Void,
                  (Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt}, Ptr{BlasInt}, 
@@ -580,5 +575,5 @@ function copy!{T<:BlasFloat,Ti<:Integer}(dest::Array{T}, rdest::Union(Range1{Ti}
     end
     BLAS.blascopy!(length(rsrc), pointer(src)+(first(rsrc)-1)*sizeof(T), step(rsrc),
                    pointer(dest)+(first(rdest)-1)*sizeof(T), step(rdest))
-    return dest
+    dest
 end

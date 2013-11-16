@@ -28,6 +28,10 @@ end
 type DimensionMismatch <: Exception
     name::ASCIIString
 end
+macro assertnonsingular(A, info)
+    :(($info)==0 ? $A : throw(SingularException($info)))
+end
+
 macro assertsquare(A)
     :(size($A,1)==size($A,2) ? size($A, 1) : throw(DimensionMismatch("Matrix must be square")))
 end

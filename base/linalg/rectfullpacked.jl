@@ -36,7 +36,7 @@ end
 
 function cholfact!{T<:BlasFloat}(A::SymmetricRFP{T})
     C, info = LAPACK.pftrf!(A.transr, A.uplo, copy(A.data))
-    return CholeskyDenseRFP(C, A.transr, A.uplo)
+    @assertnonsingular CholeskyDenseRFP(C, A.transr, A.uplo) info
 end
 cholfact{T<:BlasFloat}(A::SymmetricRFP{T}) = cholfact!(copy(A))
 
@@ -47,6 +47,5 @@ copy(A::SymmetricRFP) = SymmetricRFP(copy(A.data), A.transr, A.uplo)
 
 function inv(A::CholeskyDenseRFP)
     B, info = LAPACK.pftri!(A.transr, A.uplo, copy(A.data))
-    if info > 0 throw(SingularException(info)) end
-    return B
+    @assertnonsingular B info
 end

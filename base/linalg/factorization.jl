@@ -54,8 +54,7 @@ end
 
 function inv(C::Cholesky)
     Ci, info = LAPACK.potri!(C.uplo, copy(C.UL))
-    if info != 0; throw(SingularException(info)); end 
-    symmetrize_conj!(Ci, C.uplo)
+    @assertnonsingular symmetrize_conj!(Ci, C.uplo) info
 end
 
 ## Pivoted Cholesky

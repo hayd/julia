@@ -51,10 +51,7 @@ function logdet{T}(C::Cholesky{T})
     dd + dd # instead of 2.0dd which can change the type
 end
 
-function inv(C::Cholesky)
-    Ci, info = LAPACK.potri!(C.uplo, copy(C.UL))
-    @assertnonsingular symmetrize_conj!(Ci, C.uplo) info
-end
+inv(C::Cholesky)=symmetrize_conj!(LAPACK.potri!(C.uplo, copy(C.UL)), C.uplo)
 
 ## Pivoted Cholesky
 type CholeskyPivoted{T<:BlasFloat} <: Factorization{T}
@@ -122,8 +119,7 @@ end
     
 function inv(C::CholeskyPivoted)
     @assertrank(nothing, C.rank>=size(C.UL,1), C.info)
-    Ci, info = LAPACK.potri!(C.uplo, copy(C.UL))
-    @assertrank2 nothing info
+    Ci = LAPACK.potri!(C.uplo, copy(C.UL))
     ipiv = invperm(C.piv)
     (symmetrize!(Ci, C.uplo))[ipiv, ipiv]
 end
@@ -176,7 +172,7 @@ end
 
 function det{T}(A::LU{T})
     n = @assertsquare A
-    if A.info > 0; return zero(typeof(A.factors[1])); end
+    A.info > 0 && return zero(typeof(A.factors[1]))
     prod(diag(A.factors)) * (bool(sum(A.ipiv .!= 1:n) % 2) ? -one(T) : one(T))
 end
 
@@ -196,7 +192,8 @@ end
 function logdet{T<:Complex}(A::LU{T})
     n = @assertsquare A
     s = sum(log(diag(A.factors))) + (bool(sum(A.ipiv .!= 1:n) % 2) ? complex(0,pi) : 0) 
-    r,a = reim(s); a = a % 2pi; if a>pi a -=2pi elseif a<=-pi a+=2pi end
+    r, a = reim(s)
+    a = pi-mod(pi-a,2pi) #Take principal branch with argument (-pi,pi] 
     complex(r,a)    
 end
 

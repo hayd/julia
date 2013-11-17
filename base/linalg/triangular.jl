@@ -36,18 +36,9 @@ Ac_mul_B{T<:BlasReal}(A::Triangular{T}, B::StridedMatrix{T}) = BLAS.trmm('L', A.
 A_mul_Bc{T<:BlasComplex}(A::StridedMatrix{T}, B::Triangular{T}) = BLAS.trmm('R', B.uplo, 'C', B.unitdiag, one(T), B.UL, A)
 A_mul_Bc{T<:BlasReal}(A::StridedMatrix{T}, B::Triangular{T}) = BLAS.trmm('R', B.uplo, 'T', B.unitdiag, one(T), B.UL, A)
 
-function \{T<:BlasFloat}(A::Triangular{T}, B::StridedVecOrMat{T})
-    r, info = LAPACK.trtrs!(A.uplo, 'N', A.unitdiag, A.UL, copy(B))
-    @assertnonsingular r info
-end
-function Ac_ldiv_B{T<:BlasReal}(A::Triangular{T}, B::StridedVecOrMat{T}) 
-    r, info = LAPACK.trtrs!(A.uplo, 'T', A.unitdiag, A.UL, copy(B))
-    @assertnonsingular r info
-end
-function Ac_ldiv_B{T<:BlasComplex}(A::Triangular{T}, B::StridedVecOrMat{T})
-    r, info = LAPACK.trtrs!(A.uplo, 'C', A.unitdiag, A.UL, copy(B))
-    @assertnonsingular r info
-end
+\{T<:BlasFloat}(A::Triangular{T}, B::StridedVecOrMat{T}) = LAPACK.trtrs!(A.uplo, 'N', A.unitdiag, A.UL, copy(B))
+Ac_ldiv_B{T<:BlasReal}(A::Triangular{T}, B::StridedVecOrMat{T}) = LAPACK.trtrs!(A.uplo, 'T', A.unitdiag, A.UL, copy(B))
+Ac_ldiv_B{T<:BlasComplex}(A::Triangular{T}, B::StridedVecOrMat{T}) = LAPACK.trtrs!(A.uplo, 'C', A.unitdiag, A.UL, copy(B))
 
 /{T<:BlasFloat}(A::StridedVecOrMat{T}, B::Triangular{T}) = BLAS.trsm!('R', B.uplo, 'N', B.unitdiag, one(T), B.UL, copy(A))
 A_rdiv_Bc{T<:BlasReal}(A::StridedVecOrMat{T}, B::Triangular{T}) = BLAS.trsm!('R', B.uplo, 'T', B.unitdiag, one(T), B.UL, copy(A))
@@ -55,8 +46,5 @@ A_rdiv_Bc{T<:BlasComplex}(A::StridedVecOrMat{T}, B::Triangular{T}) = BLAS.trsm!(
 
 det(A::Triangular) = prod(diag(A.UL))
 
-function inv{T<:BlasFloat}(A::Triangular{T})
-    Ainv, info = LAPACK.trtri!(A.uplo, A.unitdiag, copy(A.UL))
-    @assertnonsingular Ainv info
-end
+inv{T<:BlasFloat}(A::Triangular{T}) = LAPACK.trtri!(A.uplo, A.unitdiag, copy(A.UL))
 inv(A::Triangular) = inv(Triangular(float(A.UL), A.uplo, A.unitdiag))

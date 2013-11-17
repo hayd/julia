@@ -6,14 +6,14 @@ type Hermitian{T<:Number} <: AbstractMatrix{T}
 end
 function Hermitian(S::Matrix, uplo::Symbol)
     if size(S, 1) != size(S, 2) throw(DimensionMismatch("Matrix must be square")); end
-    return Hermitian(S, string(uplo)[1])
+    Hermitian(S, string(uplo)[1])
 end
 Hermitian(A::Matrix) = Hermitian(A, :U)
 
 function copy!(A::Hermitian, B::Hermitian)
     copy!(A.S, B.S)
     A.uplo = B.uplo
-    return A
+    A
 end
 size(A::Hermitian, args...) = size(A.S, args...)
 print_matrix(io::IO, A::Hermitian, rows::Integer, cols::Integer) = print_matrix(io, full(A), rows, cols)
@@ -42,7 +42,7 @@ eigmin(A::Hermitian) = eigvals(A, 1, 1)[1]
 
 function eigfact!{T<:BlasFloat}(A::Hermitian{T}, B::Hermitian{T})
     vals, vecs, _ = LAPACK.sygvd!(1, 'V', A.uplo, A.S, B.uplo == A.uplo ? B.S : B.S')
-    return GeneralizedEigen(vals, vecs)
+    GeneralizedEigen(vals, vecs)
 end
 eigfact(A::Hermitian, B::Hermitian) = eigfact!(copy(A), copy(B))
 eigvals!{T<:BlasFloat}(A::Hermitian{T}, B::Hermitian{T}) = LAPACK.sygvd!(1, 'N', A.uplo, A.S, B.uplo == A.uplo ? B.S : B.S')[1]
@@ -62,9 +62,5 @@ function sqrtm(A::Hermitian, cond::Bool=false)
         zc = complex(F[:vectors])
         retmat = symmetrize!(scale(zc, vsqrt) * zc')
     end
-    if cond
-        return retmat, norm(vsqrt, Inf)^2/norm(F[:values], Inf)
-    else
-        return retmat
-    end
+    cond ? (retmat, norm(vsqrt, Inf)^2/norm(F[:values], Inf)) : retmat
 end

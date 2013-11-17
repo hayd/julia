@@ -1,7 +1,6 @@
 module UMFPACK
 
 export UmfpackLU,
-
        decrement,
        decrement!,
        increment,
@@ -12,6 +11,44 @@ import Base: (\), Ac_ldiv_B, At_ldiv_B, findnz, getindex, nnz, show, size
 import ..LinAlg: Factorization, det, lufact, lufact!, solve
 
 include("umfpack_h.jl")
+
+function umferror(status::Int)
+     if status==UMFPACK_OK
+         return
+     elseif status==UMFPACK_WARNING_singular_matrix
+         warn("Singular matrix")
+     elseif status==UMFPACK_WARNING_determinant_underflow
+         warn("The determinant is nonzero but underflowed")
+     elseif status==UMFPACK_WARNING_determinant_overflow
+         warn("The determinant overflowed")
+     elseif status==UMFPACK_ERROR_out_of_memory
+         throw(MemoryError())
+     elseif status==UMFPACK_ERROR_invalid_Numeric_object
+         throw(ArgumentError("Invalid UMFPack numeric object"))
+     elseif status==UMFPACK_ERROR_invalid_Symbolic_object
+         throw(ArgumentError("Invalud UMFPack symbolic object"))
+     elseif status==UMFPACK_ERROR_argument_missing
+         throw(ArgumentError("A required argument to UMFPack is missing"))
+     elseif status==UMFPACK_ERROR_n_nonpositive
+         throw(BoundsError("The number of rows or columns of the matrix must be greater than zero"))
+     elseif status==UMFPACK_ERROR_invalid_matrix
+         throw(ArgumentError("Invalid matrix"))
+     elseif status==UMFPACK_ERROR_different_pattern
+         throw(ArgumentError("Pattern of the matrix changed"))
+     elseif status==UMFPACK_ERROR_invalid_system
+         throw(ArgumentError("Invalid sys argument provided to UMFPack solver"))
+     elseif status==UMFPACK_ERROR_invalid_permutation
+         throw(ArgumentError("Invalid permutation"))
+     elseif status==UMFPACK_ERROR_file_IO
+         throw(IOError())
+     elseif status==UMFPACK_ERROR_ordering_failed
+         error("The ordering method failed")
+     elseif status==UMFPACK_ERROR_internal_error
+         error("An internal error has occurred, of unknown cause")
+     else
+         error("Unknown error code: $status")
+     end
+end
 
 type MatrixIllConditionedException <: Exception end
 
@@ -116,7 +153,7 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                             Ptr{Float64}, Ptr{Float64}),
                            U.m, U.n, U.colptr, U.rowval, U.nzval, tmp,
                            umf_ctrl, umf_info)
-            if status != UMFPACK_OK; error("Error code $status from symbolic factorization"); end
+            umferror(status)
             U.symbolic = tmp[1]
             U
         end
@@ -128,7 +165,7 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                             Ptr{Float64}, Ptr{Float64}),
                            U.m, U.n, U.colptr, U.rowval, real(U.nzval), imag(U.nzval), tmp,
                            umf_ctrl, umf_info)
-            if status != UMFPACK_OK; error("Error code $status from symbolic factorization"); end
+            umferror(status)
             U.symbolic = tmp[1]
             U
         end
@@ -141,8 +178,8 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                             Ptr{Float64}, Ptr{Float64}),
                            U.colptr, U.rowval, U.nzval, U.symbolic, tmp,
                            umf_ctrl, umf_info)
-            if status > 0; throw(MatrixIllConditionedException); end
-            if status != UMFPACK_OK; error("Error code $status from numeric factorization"); end
+            status > 0 && throw(MatrixIllConditionedException)
+            umferror(status)
             U.numeric = tmp[1]
             U
         end
@@ -155,8 +192,8 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                             Ptr{Float64}, Ptr{Float64}),
                            U.colptr, U.rowval, real(U.nzval), imag(U.nzval), U.symbolic, tmp,
                            umf_ctrl, umf_info)
-            if status > 0; throw(MatrixIllConditionedException); end
-            if status != UMFPACK_OK; error("Error code $status from numeric factorization"); end
+            status > 0 && throw(MatrixIllConditionedException)
+            umferror(status)
             U.numeric = tmp[1]
             U
         end
@@ -167,8 +204,8 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                            (Ti, Ptr{Ti}, Ptr{Ti}, Ptr{Float64}, Ptr{Float64},
                             Ptr{Float64}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}),
                            typ, lu.colptr, lu.rowval, lu.nzval, x, b, lu.numeric, umf_ctrl, umf_info)
-            if status != UMFPACK_OK; error("Error code $status in umfpack_solve"); end
-            return x
+            umferror(status)
+            x
         end
         function solve{Tv<:Complex128,Ti<:$itype}(lu::UmfpackLU{Tv,Ti}, b::Vector{Tv}, typ::Integer)
             umfpack_numeric!(lu)
@@ -182,15 +219,15 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                            typ, lu.colptr, lu.rowval, real(lu.nzval), imag(lu.nzval),
                            xr, xi, real(b), imag(b),
                            lu.numeric, umf_ctrl, umf_info)
-            if status != UMFPACK_OK; error("Error code $status from umfpack_solve"); end
-            return complex(xr,xi)
+            umferror(status)
+            complex(xr,xi)
         end
         function det{Tv<:Float64,Ti<:$itype}(lu::UmfpackLU{Tv,Ti})
             mx = Array(Tv,1)
             status = ccall(($det_r,:libumfpack), Ti,
                            (Ptr{Tv},Ptr{Tv},Ptr{Void},Ptr{Float64}),
                            mx, C_NULL, lu.numeric, umf_info)
-            if status != UMFPACK_OK error("Error code $status from umfpack_get_determinant") end
+            umferror(status)
             mx[1]
         end
         function det{Tv<:Complex128,Ti<:$itype}(lu::UmfpackLU{Tv,Ti})
@@ -199,7 +236,7 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
             status = ccall(($det_z,:libumfpack), Ti,
                            (Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Void},Ptr{Float64}),
                            mx, mz, C_NULL, lu.numeric, umf_info)
-            if status != UMFPACK_OK error("Error code $status from umfpack_get_determinant") end
+            umferror(status)
             complex(mx[1], mz[1])
         end
         function umf_lunz{Tv<:UMFVTypes,Ti<:$itype}(lu::UmfpackLU{Tv,Ti})
@@ -211,7 +248,7 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
             status = ccall(($lunz,:libumfpack), Ti,
                            (Ptr{Ti},Ptr{Ti},Ptr{Ti},Ptr{Ti},Ptr{Ti},Ptr{Void}),
                            lnz, unz, n_row, n_col, nz_diag, lu.numeric)
-            if status != UMFPACK_OK error("Error code $status from umfpack_get_lunz") end
+            umferror(status)
             (lnz[1], unz[1], n_row[1], n_col[1], nz_diag[1])
         end
         function umf_extract{Tv<:Float64,Ti<:$itype}(lu::UmfpackLU{Tv,Ti})
@@ -235,7 +272,7 @@ for (sym_r,sym_c,num_r,num_c,sol_r,sol_c,det_r,det_z,lunz,get_num_r,get_num_z,it
                            Up,Ui,Ux,
                            P, Q, C_NULL,
                            &0, Rs, lu.numeric)
-            if status != UMFPACK_OK error("Error code $status from numeric") end
+            umferror(status)
             (transpose(SparseMatrixCSC(n_row,n_row,increment!(Lp),increment!(Lj),Lx)),
              SparseMatrixCSC(n_row,n_col,increment!(Up),increment!(Ui),Ux),
              increment!(P), increment!(Q), Rs)
@@ -289,7 +326,7 @@ function getindex(lu::UmfpackLU, d::Symbol)
       (d == :q ? q :
        (d == :Rs ? Rs :
         (d == :(:) ? (L,U,p,q,Rs) :
-         error("No component for symbol $d"))))))
+         throw(KeyError(d)))))))
 end
  
 ## The C functions called by these Julia functions do not depend on
@@ -326,10 +363,8 @@ function umfpack_report_symbolic(symb::Ptr{Void}, level::Real)
     umf_ctrl[UMFPACK_PRL] = float64(level)
     status = ccall((:umfpack_dl_report_symbolic, :libumfpack), Int,
                    (Ptr{Void}, Ptr{Float64}), symb, umf_ctrl)
+    umferror(status)
     umf_ctrl[UMFPACK_PRL] = old_prl
-    if status != 0
-        error("Error code $status from umfpack_report_symbolic")
-    end
 end
 
 umfpack_report_symbolic(symb::Ptr{Void}) = umfpack_report_symbolic(symb, 4.)
@@ -344,10 +379,8 @@ function umfpack_report_numeric(num::Ptr{Void}, level::Real)
     umf_ctrl[UMFPACK_PRL] = float64(level)
     status = ccall((:umfpack_dl_report_numeric, :libumfpack), Int,
                    (Ptr{Void}, Ptr{Float64}), num, umf_ctrl)
+    umferror(status)
     umf_ctrl[UMFPACK_PRL] = old_prl
-    if status != 0
-        error("Error code $status from umfpack_report_numeric")
-    end
 end
 
 umfpack_report_numeric(num::Ptr{Void}) = umfpack_report_numeric(num, 4.)

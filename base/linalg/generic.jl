@@ -4,9 +4,9 @@ scale{T<:Number}(X::AbstractArray{T}, s::Number) = scale!(copy(X), s)
 
 function scale!{T<:Number}(X::AbstractArray{T}, s::Number)
     for i in 1:length(X)
-        X[i] *= s;
+        X[i] *= s
     end
-    return X
+    X
 end
 
 cross(a::AbstractVector, b::AbstractVector) =
@@ -49,7 +49,7 @@ function norm{T}(x::AbstractVector{T}, p::Number)
             a = sum(absx.^p).^(1/p)
         end
     end
-    return float(a)
+    float(a)
 end
 norm{T<:Integer}(x::AbstractVector{T}, p::Number) = norm(float(x), p)
 norm(x::AbstractVector) = norm(x, 2)
@@ -69,13 +69,11 @@ function norm(A::AbstractMatrix, p::Number)
     else
         error("invalid parameter p given to compute matrix norm")
     end
-    return float(a)
+    float(a)
 end
 
 norm(A::AbstractMatrix) = norm(A, 2)
-
-norm(x::Number) = abs(x)
-norm(x::Number, p) = abs(x)
+norm(x::Number, p=nothing) = abs(x)
 
 normfro(A::AbstractMatrix) = norm(reshape(A, length(A)))
 normfro(x::Number) = abs(x)
@@ -90,9 +88,7 @@ end
 rank(x::Number) = x == 0 ? 0 : 1
 
 function trace(A::AbstractMatrix)
-    if size(A,1) != size(A,2)
-        error("expected square matrix")
-    end
+    @assertsquare A
     sum(diag(A))
 end
 trace(x::Number) = x
@@ -104,39 +100,35 @@ trace(x::Number) = x
 
 inv(a::AbstractVector) = error("Input must be a square matrix")
 
-(\)(A::AbstractMatrix, b::AbstractVector) = A_ldiv_B!(A, copy(b))
-(\)(A::AbstractMatrix, B::AbstractMatrix) = A_ldiv_B!(A, copy(B))
+(\)(A::AbstractMatrix, B::Union(AbstractVector,AbstractMatrix)) = A_ldiv_B!(A, copy(B))
 (\)(a::AbstractVector, b::AbstractArray) = reshape(a, length(a), 1) \ b
-(/)(A::AbstractVector, B::AbstractVector) = (B' \ A')'
-(/)(A::AbstractVector, B::AbstractMatrix) = (B' \ A')'
-(/)(A::AbstractMatrix, B::AbstractVector) = (B' \ A')'
-(/)(A::AbstractMatrix, B::AbstractMatrix) = (B' \ A')'
+(/)(A::Union(AbstractVector,AbstractMatrix), B::Union(AbstractVector,AbstractMatrix)) = (B' \ A')'
 
 cond(x::Number) = x == 0 ? Inf : 1.0
 cond(x::Number, p) = cond(x)
 
 function issym(A::AbstractMatrix)
     m, n = size(A)
-    if m != n; return false; end
+    m==n || return false
     for i = 1:(n-1), j = (i+1):n
         if A[i,j] != A[j,i]
             return false
         end
     end
-    return true
+    true
 end
 
 issym(x::Number) = true
 
 function ishermitian(A::AbstractMatrix)
     m, n = size(A)
-    if m != n; return false; end
+    m==n || return false
     for i = 1:n, j = i:n
         if A[i,j] != conj(A[j,i])
             return false
         end
     end
-    return true
+    true
 end
 
 ishermitian(x::Number) = (x == conj(x))
@@ -148,7 +140,7 @@ function istriu(A::AbstractMatrix)
             return false
         end
     end
-    return true
+    true
 end
 
 function istril(A::AbstractMatrix)
@@ -158,20 +150,18 @@ function istril(A::AbstractMatrix)
             return false
         end
     end
-    return true
+    true
 end
 
 istriu(x::Number) = true
 istril(x::Number) = true
 
-function linreg{T<:Number}(X::StridedVecOrMat{T}, y::Vector{T})
-    [ones(T, size(X,1)) X] \ y
-end
+linreg{T<:Number}(X::StridedVecOrMat{T}, y::Vector{T}) = [ones(T, size(X,1)) X] \ y
 
 # weighted least squares
 function linreg(x::AbstractVector, y::AbstractVector, w::AbstractVector)
-    w = sqrt(w)
-    [w w.*x] \ (w.*y)
+    sw = sqrt(w)
+    [sw sw.*x] \ (sw.*y)
 end
 
 # multiply by diagonal matrix as vector
@@ -197,11 +187,6 @@ function peakflops(n::Integer=2000; parallel::Bool=false)
     t = @elapsed a*a
     a = rand(n,n)
     t = @elapsed a*a
-    if parallel
-        floprate = sum(pmap(peakflops, [ n for i in 1:nworkers()]) )
-    else
-        floprate = (2.0*float64(n)^3/t)
-    end
-    floprate
+    parallel ? sum(pmap(peakflops, [ n for i in 1:nworkers()])) : (2*n^3/t)
 end
 

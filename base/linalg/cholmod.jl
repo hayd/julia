@@ -330,7 +330,7 @@ end
 function CholmodDense{T<:CHMVTypes}(c::Ptr{c_CholmodDense{T}})
     cp = unsafe_load(c)
     if cp.lda != cp.m || cp.nzmax != cp.m * cp.n
-        error("overallocated cholmod_dense returned object of size $(cp.m) by $(cp.n) with leading dim $(cp.lda) and nzmax $(cp.nzmax)")
+        throw(DimensionMismatch("overallocated cholmod_dense returned object of size $(cp.m) by $(cp.n) with leading dim $(cp.lda) and nzmax $(cp.nzmax)"))
     end
     ## the true in the call to pointer_to_array means Julia will free the memory
     val = CholmodDense(cp, pointer_to_array(cp.xpt, (cp.m,cp.n), true))
@@ -385,12 +385,11 @@ function copy{Tv<:CHMVTypes}(B::CholmodDense{Tv})
                        (Ptr{c_CholmodDense{Tv}},Ptr{Uint8}), &B.c, cmn(Int32)))
 end
 
-function norm{Tv<:CHMVTypes}(D::CholmodDense{Tv},p::Number)
+function norm{Tv<:CHMVTypes}(D::CholmodDense{Tv},p::Number=1)
     ccall((:cholmod_norm_dense, :libcholmod), Float64, 
           (Ptr{c_CholmodDense{Tv}}, Cint, Ptr{Uint8}),
-          &D.c, p == 1 ? 1 :(p == Inf ? 1 : error("p must be 1 or Inf")),cmn(Int32))
+          &D.c, p == 1 ? 1 :(p == Inf ? 1 : throw(ArgumentError("p must be 1 or Inf"))),cmn(Int32))
 end
-norm{Tv<:CHMVTypes}(D::CholmodDense{Tv}) = norm(D,1)
 
 function CholmodSparse!{Tv<:CHMVTypes,Ti<:CHMITypes}(colpt::Vector{Ti},
                                                      rowval::Vector{Ti},
@@ -399,19 +398,19 @@ function CholmodSparse!{Tv<:CHMVTypes,Ti<:CHMITypes}(colpt::Vector{Ti},
                                                      n::Integer,
                                                      stype::Signed)
     bb = colpt[1]
-    if bb != 0 && bb != 1 error("colpt[1] is $bb, must be 0 or 1") end
-    if any(diff(colpt) .< 0) error("elements of colpt must be non-decreasing") end
-    if length(colpt) != n + 1 error("length(colptr) = $(length(colpt)), should be $(n+1)") end
+    if bb != 0 && bb != 1 throw(DimensionMismatch("colpt[1] is $bb, must be 0 or 1")) end
+    if any(diff(colpt) .< 0) throw(ArgumentError("elements of colpt must be non-decreasing")) end
+    if length(colpt) != n + 1 throw(DimensionMismatch("length(colptr) = $(length(colpt)), should be $(n+1)")) end
     if bool(bb)                         # one-based 
         decrement!(colpt)
         decrement!(rowval)
     end
     nz = colpt[end]
     if length(rowval) != nz || length(nzval) != nz
-        error("length(rowval) = $(length(rowval)) and length(nzval) = $(length(nzval)) should be $nz")
+        throw(DimensionMismatch("length(rowval) = $(length(rowval)) and length(nzval) = $(length(nzval)) should be $nz"))
     end
     if any(rowval .< 0) || any(rowval .>= m)
-        error("all elements of rowval must be in the range [0,$(m-1)]")
+        throw(ArgumentError("all elements of rowval must be in the range [0,$(m-1)]"))
     end
     it = ityp(Ti)
     sort!(CholmodSparse(c_CholmodSparse{Tv,Ti}(m,n,int(nz),convert(Ptr{Ti},colpt),
@@ -733,7 +732,7 @@ for Ti in (:Int32,:Int64)
             nc = trans ? m : n
             nr = trans ? n : m
             if nc != size(X,1)
-                error("Incompatible dimensions, $nc and $(size(X,1)), in chm_sdmult")
+                throw(DimensionMismatch("Incompatible dimensions, $nc and $(size(X,1)), in chm_sdmult"))
             end
             aa = float64([alpha, 0.])
             bb = float64([beta, 0.])
@@ -803,7 +802,7 @@ for Ti in (:Int32,:Int64)
             ccall((@chm_nm "norm_sparse" $Ti
                    , :libcholmod), Float64, 
                   (Ptr{c_CholmodSparse{Tv,$Ti}}, Cint, Ptr{Uint8}),
-                  &A.c,p == 1 ? 1 :(p == Inf ? 1 : error("p must be 1 or Inf")),cmn($Ti))
+                  &A.c,p == 1 ? 1 :(p == Inf ? 1 : throw(ArgumentError("p must be 1 or Inf"))),cmn($Ti))
         end
         function solve{Tv<:CHMVTypes}(L::CholmodFactor{Tv,$Ti},
                                       B::CholmodDense{Tv}, typ::Integer)
@@ -939,7 +938,7 @@ function size(A::CholmodSparse, d::Integer)
     d == 1 ? A.c.m : (d == 2 ? A.c.n : 1)
 end
 size(L::CholmodFactor) = (n = int(L.c.n); (n,n))
-size(L::CholmodFactor,d::Integer) = d < 1 ? error("dimension out of range") : (d <= 2 ? int(L.c.n) : 1)
+size(L::CholmodFactor,d::Integer) = d < 1 ? throw(BoundsError("Dimension $d out of range")) : (d <= 2 ? int(L.c.n) : 1)
 
 function solve{Tv<:CHMVTypes,Ti<:CHMITypes}(L::CholmodFactor{Tv,Ti},
                                             B::SparseMatrixCSC{Tv,Ti},typ::Integer)

@@ -26,7 +26,7 @@ function argtype_decl(n, t) # -> (argname, argtype)
     return s, string(t)
 end
 
-function arg_decl_parts(m::Method)
+function arg_decl_parts(m::Method, kwfunc::Bool=false)
     tv = m.tvars
     if !isa(tv,SimpleVector)
         tv = svec(tv)
@@ -36,25 +36,35 @@ function arg_decl_parts(m::Method)
     argnames = e.args[1]
     s = symbol("?")
     decls = [argtype_decl(get(argnames,i,s), m.sig.parameters[i]) for i=1:length(m.sig.parameters)]
-    return tv, decls, li.file, li.line
+    if kwfunc
+        shift!(decls)
+        kwargs = filter!(x->!('#' in string(x)), e.args[2][1])
+    else
+        kwargs = ()
+    end
+    return tv, decls, kwargs, li.file, li.line
 end
 
-function show(io::IO, m::Method)
+function show(io::IO, m::Method; kwfunc::Bool=false)
     print(io, m.func.code.name)
-    tv, decls, file, line = arg_decl_parts(m)
+    tv, decls, kwargs, file, line = arg_decl_parts(m, kwfunc)
     if !isempty(tv)
         show_delim_array(io, tv, '{', ',', '}', false)
     end
     print(io, "(")
     print_joined(io, [isempty(d[2]) ? d[1] : d[1]*"::"*d[2] for d in decls],
                  ", ", ", ")
+    if kwfunc
+        print(io, "; ")
+        print_joined(io, kwargs, ", ", ", ")
+    end
     print(io, ")")
     if line > 0
         print(io, " at ", file, ":", line)
     end
 end
 
-function show_method_table(io::IO, mt::MethodTable, max::Int=-1, header::Bool=true)
+function show_method_table(io::IO, mt::MethodTable, max::Int=-1, header::Bool=true, kwfunc::Bool=false)
     name = mt.name
     n = length(mt)
     if header
@@ -66,12 +76,15 @@ function show_method_table(io::IO, mt::MethodTable, max::Int=-1, header::Bool=tr
     while d !== nothing
         if max==-1 || n<max || (rest==0 && n==max && d.next === nothing)
             println(io)
-            show(io, d)
+            show(io, d; kwfunc=kwfunc)
             n += 1
         else
             rest += 1
         end
         d = d.next
+    end
+    if isdefined(mt, :kwsorter) && (max == -1 || n+length(mt.kwsorter)<max || (rest==0 && length(mt.kwsorter)==max))
+        show_method_table(io, mt.kwsorter.env, max==-1 ? -1 : max-n, false, true)
     end
     if rest > 0
         println(io)
@@ -92,6 +105,9 @@ end
 fileurl(file) = let f = find_source_file(file); f === nothing ? "" : "file://"*f; end
 
 function url(m::Method)
+    if m.func.code.file == :none
+        return ""
+    end
     M = m.func.code.module
     (m.func.code.file == :null || m.func.code.file == :string) && return ""
     file = string(m.func.code.file)
@@ -116,14 +132,18 @@ function url(m::Method)
                 end
             end
         catch
+            path = find_source_file(file)
+            if path === nothing
+                return ""
+            end
             return fileurl(file)
         end
     end
 end
 
-function writemime(io::IO, ::MIME"text/html", m::Method)
+function writemime(io::IO, ::MIME"text/html", m::Method; kwfunc::Bool=false)
     print(io, m.func.code.name)
-    tv, decls, file, line = arg_decl_parts(m)
+    tv, decls, kwargs, file, line = arg_decl_parts(m, kwfunc)
     if !isempty(tv)
         print(io,"<i>")
         show_delim_array(io, tv, '{', ',', '}', false)
@@ -132,6 +152,11 @@ function writemime(io::IO, ::MIME"text/html", m::Method)
     print(io, "(")
     print_joined(io, [isempty(d[2]) ? d[1] : d[1]*"::<b>"*d[2]*"</b>"
                       for d in decls], ", ", ", ")
+    if kwfunc
+        print(io, "; <i>")
+        print_joined(io, kwargs, ", ", ", ")
+        print(io, "</i>")
+    end
     print(io, ")")
     if line > 0
         u = url(m)
@@ -153,7 +178,17 @@ function writemime(io::IO, mime::MIME"text/html", mt::MethodTable)
     while d !== nothing
         print(io, "<li> ")
         writemime(io, mime, d)
+        print(io, "</li> ")
         d = d.next
+    end
+    if isdefined(mt, :kwsorter)
+        d = mt.kwsorter.env.defs
+        while !is(d,())
+            print(io, "<li> ")
+            writemime(io, mime, d; kwfunc=true)
+            print(io, "</li> ")
+            d = d.next
+        end
     end
     print(io, "</ul>")
 end

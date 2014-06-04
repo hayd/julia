@@ -60,15 +60,18 @@ b_stat = stat(b_tmpdir)
 
 rmdir(b_tmpdir)
 
-# rmdir recursive TODO add links
+# rmdir recursive with links
 c_tmpdir = mktempdir()
 c_subdir = joinpath(c_tmpdir, "c_subdir")
 mkdir(c_subdir)
 c_file = joinpath(c_tmpdir, "cfile.txt")
 cp(newfile, c_file)
+c_link = joinpath(c_tmpdir,  "c_link")
+run(`ln -s $c_file $c_link`)
 
 @test isdir(c_subdir)
 @test isfile(c_file)
+@test islink(c_link)
 @test_throws rmdir(c_tmpdir)
 
 rmdir(c_tmpdir, true)

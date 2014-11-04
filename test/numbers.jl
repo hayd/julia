@@ -2707,3 +2707,8 @@ end
 # issue #12536
 @test Rational{Int16}(1,2) === Rational(Int16(1),Int16(2))
 @test Rational{Int16}(500000,1000000) === Rational(Int16(1),Int16(2))
+
+# Integer exponentiation with negative powers (#8900)
+@test_throws DomainError 2^(-3)
+@test 1^(-3) == 1 == (-1)^(-4)
+@test (-1)^(-3) == -1

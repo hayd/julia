@@ -184,9 +184,36 @@ function objdoc(meta, def)
     end
 end
 
+function maybe_get_method(def)
+    if :head in names(def) && def.head == :call
+        sig = Any[]
+        for arg in def.args[2:end]
+            if isa(arg, Symbol)
+                push!(sig, Any)
+            elseif isa(arg, QuoteNode)
+                push!(sig, typeof(arg.value))
+            elseif isa(arg, Expr)
+                assert(arg.head == :(::))
+                push!(sig, getfield(current_module(), arg.args[end]))
+            else
+                push!(sig, typeof(arg))
+            end
+        end
+        f = getfield(current_module(), def.args[1])
+        sig = tuple(sig...)
+        possible_methods = methods(f, sig)
+        length(possible_methods) == 0 && throw(ArgumentError("No method found with the given signature"))
+        return possible_methods[1]
+    end
+    def
+end
+
 fexpr(ex) = isexpr(ex, :function) || (isexpr(ex, :(=)) && isexpr(ex.args[1], :call))
 
 function docm(meta, def)
+    m = maybe_get_method(def)
+    isa(m, Method) && return doc(getfield(current_module(), m.func.code.name),
+                                 m, meta, m.func.code) 
     def′ = unblock(def)
     isexpr(def′, :macro) && return namedoc(meta, def, symbol("@", namify(def′)))
     isexpr(def′, :type) && return namedoc(meta, def, namify(def′.args[2]))
@@ -197,6 +224,8 @@ function docm(meta, def)
 end
 
 function docm(ex)
+    m = maybe_get_method(ex)
+    isa(m, Method) && return doc(getfield(current_module(), m.func.code.name), m)# :(doc($(esc(ex)), $(esc(m))))
     haskey(keywords, ex) && return keywords[ex]
     isexpr(ex, :->) && return docm(ex.args...)
     isexpr(ex, :call) && return :(doc($(esc(ex.args[1])), @which $(esc(ex))))

@@ -107,9 +107,9 @@ function writemime(io::IO, ::MIME"text/html", m::Method)
     print(io, m.func.code.name)
     tv, decls, file, line = arg_decl_parts(m)
     if !isempty(tv)
-        print(io,"<i>")
-        show_delim_array(io, tv, '{', ',', '}', false)
-        print(io,"</i>")
+        Markdown.withtag(io, :i) do
+            show_delim_array(io, tv, '{', ',', '}', false)
+        end
     end
     print(io, "(")
     print_joined(io, [isempty(d[2]) ? d[1] : d[1]*"::<b>"*d[2]*"</b>"
@@ -130,14 +130,17 @@ function writemime(io::IO, mime::MIME"text/html", mt::MethodTable)
     name = mt.name
     n = length(mt)
     meths = n==1 ? "method" : "methods"
-    print(io, "$n $meths for generic function <b>$name</b>:<ul>")
-    d = mt.defs
-    while !is(d,())
-        print(io, "<li> ")
-        writemime(io, mime, d)
-        d = d.next
+    print(io, "$n $meths for generic function <b>$name</b>:")
+
+    Markdown.withtag(io, :ul) do
+        d = mt.defs
+        while !is(d,())
+            Markdown.withtag(io, :li) do
+                writemime(io, mime, d)
+                d = d.next
+            end
+        end
     end
-    print(io, "</ul>")
 end
 
 # pretty-printing of Vector{Method} for output of methodswith:
@@ -145,12 +148,14 @@ end
 function writemime(io::IO, mime::MIME"text/html", mt::AbstractVector{Method})
     print(io, summary(mt))
     if !isempty(mt)
-        print(io, ":<ul>")
-        for d in mt
-            print(io, "<li> ")
-            writemime(io, mime, d)
+        print(io, ":")
+        Markdown.withtag(io, :ul) do
+            for d in mt
+                Markdown.withtag(io, :li) do
+                    writemime(io, mime, d)
+                end
+            end
         end
-        print(io, "</ul>")
     end
 end
 

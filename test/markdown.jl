@@ -50,8 +50,8 @@ World""" |> plain == "Hello\n\n–––\n\nWorld\n"
 # HTML output
 
 @test md"foo *bar* baz" |> html == "<p>foo <em>bar</em> baz</p>\n"
-@test md"1. Hello" |> html == "<ol><li>Hello</li>\n</ol>\n"
-@test md"* World" |> html == "<ul><li>World</li>\n</ul>\n"
+@test md"1. Hello" |> html == "<ol>\n<li>Hello</li>\n</ol>\n"
+@test md"* World" |> html == "<ul>\n<li>World</li>\n</ul>\n"
 @test md"# title *blah*" |> html == "<h1>title <em>blah</em></h1>\n"
 @test md"## title *blah*" |> html == "<h2>title <em>blah</em></h2>\n"
 @test md"""Hello

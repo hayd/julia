@@ -196,7 +196,7 @@ function horizontalrule(stream::IO, block::MD, config::Config)
                return false
            end
        end
-       is_hr = (n ≥ 3 && rule in "*-")
+       is_hr = (n ≥ 3 && rule in "*-_")
        is_hr && push!(block, HorizontalRule())
        return is_hr
    end

@@ -154,12 +154,24 @@ function parse_inline_wrapper(stream::IO, delimiter::String; rep = false)
         n = 1
         while rep && startswith(stream, delimiter); (n += 1) end
 
+        # check not immediately following delimiter
+        m = length(delimiter.data)
+        if position(stream) >= n + m
+            skip(stream, -(n + m))
+            read(stream, UInt8, m) == delimiter.data && return nothing
+            skip(stream, n)
+        end
+
         buffer = IOBuffer()
         while !eof(stream)
             char = read(stream, Char)
             write(buffer, char)
-            if !(char in whitespace || char == '\n') && startswith(stream, delimiter^n)
-                return takebuf_string(buffer)
+            if !(char in whitespace || char == '\n' || string(char) == delimiter) && startswith(stream, delimiter^n)
+                # TODO use printesc for regex ?
+                r_delim = sprint(print_escaped, delimiter, "*+{}()\$")
+                trailing = startswith(stream, Regex("^($r_delim)*"))
+                length(trailing) == 0 && return takebuf_string(buffer)
+                write(buffer, delimiter^n, trailing)
             end
         end
     end

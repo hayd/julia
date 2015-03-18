@@ -47,16 +47,22 @@ function hashheader(stream::IO, md::MD, config::Config)
     while startswith(stream, "#")
         level += 1
     end
-    h = readline(stream) |> chomp
-    h = match(r"\s*(.*)(?<![#\s])", h).captures[1]
-    buffer = IOBuffer()
-    print(buffer, h)
-    if !isempty(h)
-        push!(md.content, Header(parseinline(seek(buffer, 0), config), level))
-        return true
-    else
+
+    if level > 6
+        skip(stream, -level)
+        return false
+    elseif !eof(stream) && (c = read(stream, Char); !(c in " \n"))
+        skip(stream, -level-length(string(c).data))
         return false
     end
+
+    h = readline(stream) |> chomp
+    h = strip(h)
+    h = match(r"(.*?)( +#+)?$", h).captures[1]
+    buffer = IOBuffer()
+    print(buffer, h)
+    push!(md.content, Header(parseinline(seek(buffer, 0), config), level))
+    return true
 end
 
 # ––––
@@ -97,17 +103,17 @@ BlockQuote() = BlockQuote([])
 function blockquote(stream::IO, block::MD, config::Config)
     withstream(stream) do
         buffer = IOBuffer()
-        while startswith(stream, ">")
+        empty = true
+        while startswith(stream, r"^ {0,3}>") != ""
             startswith(stream, " ")
             write(buffer, readline(stream))
+            empty = false
         end
+        empty && return false
+
         md = takebuf_string(buffer)
-        if !isempty(md)
-            push!(block, BlockQuote(parse(md, flavor = config).content))
-            return true
-        else
-            return false
-        end
+        push!(block, BlockQuote(parse(md, flavor = config).content))
+        return true
     end
 end
 

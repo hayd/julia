@@ -376,9 +376,10 @@ end
 
 full(x::AbstractArray) = x
 
-map(::Type{Integer},  a::Array) = map!(Integer, similar(a,typeof(Integer(one(eltype(a))))), a)
-map(::Type{Signed},   a::Array) = map!(Signed, similar(a,typeof(Signed(one(eltype(a))))), a)
-map(::Type{Unsigned}, a::Array) = map!(Unsigned, similar(a,typeof(Unsigned(one(eltype(a))))), a)
+function map{T <: Integer}(::Type{T}, a::Array)
+    Ta = (t = eltype(a); method_exists(one, (t,)) ? typeof(T(one(t))) : T)
+    map!(T, similar(a, Ta, a))
+end
 
 ## range conversions ##
 

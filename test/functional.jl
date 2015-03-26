@@ -7,6 +7,19 @@ let a = [1.0, 2.0]
     map!(sin, a)
     @test isequal(a, sin([1.0, 2.0]))
 end
+
+let a = Any[1, 2, Int8(3), UInt8(4)] # GH10633
+    for T in [Integer, Signed]
+        @test eltype(map(T, a)) == T
+        @test eltype(map(T, map(Int64, a))) == Int64
+        @test eltype(map(T, map(Float64, a))) == Int64
+        @test eltype(map(T, map(Int8, a))) == Int8
+    end
+    @test eltype(map(Unsigned, a)) == Unsigned
+    @test eltype(map(Int8, a)) == UInt8
+    @test eltype(map(Int64, a)) == UInt64
+end
+
 # map -- ranges.jl
 @test isequal(map(i->sqrt(i), 1:5), [sqrt(i) for i in 1:5])
 @test isequal(map(i->sqrt(i), 2:6), [sqrt(i) for i in 2:6])

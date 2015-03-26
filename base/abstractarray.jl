@@ -376,7 +376,7 @@ end
 
 full(x::AbstractArray) = x
 
-function map{T <: Integer}(::Type{T}, a::Array)
+function map(T::Union(Type{Integer}, Type{Signed}, Type{Unsigned}), a::Array)
     Ta = (t = eltype(a); method_exists(one, (t,)) ? typeof(T(one(t))) : T)
     map!(T, similar(a, Ta, a))
 end

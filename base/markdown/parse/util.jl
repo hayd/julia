@@ -43,7 +43,7 @@ function linecontains(io::IO, chars; allow_whitespace = true,
                                      eat = true,
                                      allowempty = false)
     start = position(io)
-    l = readline(io) |> chomp
+    l = readuntilnewline(io)
     length(l) == 0 && return allowempty
 
     result = allowempty
@@ -96,7 +96,7 @@ function startswith(stream::IO, r::Regex; eat = true, padding = false)
     @assert Base.startswith(r.pattern, "^")
     start = position(stream)
     padding && skipwhitespace(stream)
-    line = chomp(readline(stream))
+    line = readuntilnewline(stream)
     seek(stream, start)
     m = match(r, line)
     m == nothing && return ""
@@ -128,6 +128,20 @@ function eatindent(io::IO, n = 3)
     end
 end
 
+"""Consume a newline. Return false if there is
+no newline. newlines can be '\n', '\r' or '\r\n'.
+"""
+function eatnewline(io::IO):
+    withstream(io) do
+        !eof(io) || return false
+        c = read(io, Char)
+        c == '\n' && return true
+        c == '\r' && (startswith(io, '\n'); return true)
+        return false
+    end
+end
+
+
 """
 Read the stream until startswith(stream, delim)
 The delimiter is consumed but not included.
@@ -148,12 +162,28 @@ function readuntil(stream::IO, delimiter; newlines = false, match = nothing)
                     continue
                 end
             end
+            !newlines && eatnewline(io) && break
             char = read(stream, Char)
             char == match && (count += 1)
-            !newlines && char == '\n' && break
             write(buffer, char)
         end
     end
+end
+
+"""Read until '\r', '\n' or '\r\n'.
+keepend inserts '\n' at the end on the line.
+"""
+function readuntilnewline(io; keepend=false)
+    line = IOBuffer()
+    while !eof(io)
+        if eatnewline(io)
+            keepend && write(line, '\n')
+            break
+        end
+        char = read(io, Char)
+        write(line, char)
+    end
+    return readall(line)
 end
 
 # TODO: refactor this. If we're going to assume

@@ -6,7 +6,7 @@ function fencedcode(stream::IO, block::MD)
         startswith(stream, "~~~", padding = true) || startswith(stream, "```", padding = true) || return false
         skip(stream, -1)
         ch = read(stream, Char)
-        trailing = strip(readline(stream))
+        trailing = readuntilnewline(stream) |> strip
         flavor = lstrip(trailing, ch)
         n = 3 + length(trailing) - length(flavor)
 
@@ -24,7 +24,7 @@ function fencedcode(stream::IO, block::MD)
                     seek(stream, line_start)
                 end
             end
-            write(buffer, readline(stream))
+            write(buffer, readuntilnewline(stream; keepend=true))
         end
         return false
     end
@@ -36,8 +36,7 @@ function github_paragraph(stream::IO, md::MD)
     p = Paragraph()
     push!(md, p)
     while !eof(stream)
-        char = read(stream, Char)
-        if char == '\n'
+        if eatnewline(io)
             eof(stream) && break
             if blankline(stream) || parse(stream, md, breaking = true)
                 break
@@ -45,6 +44,7 @@ function github_paragraph(stream::IO, md::MD)
                 write(buffer, '\n')
             end
         else
+            char = read(stream, Char)
             write(buffer, char)
         end
     end

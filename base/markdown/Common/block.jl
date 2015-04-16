@@ -14,8 +14,8 @@ function paragraph(stream::IO, md::MD)
     push!(md, p)
     skipwhitespace(stream)
     while !eof(stream)
-        char = read(stream, Char)
-        if char == '\n' || char == '\r'
+        if eatnewline(io)
+            char = read(stream, Char)
             if blankline(stream) || parse(stream, md, breaking = true)
                 break
             else
@@ -54,7 +54,7 @@ function hashheader(stream::IO, md::MD)
             return false
 
         if c != '\n' # Empty header
-            h = readline(stream) |> strip
+            h = readuntilnewline(stream) |> strip
             h = match(r"(.*?)( +#+)?$", h).captures[1]
             buffer = IOBuffer()
             print(buffer, h)
@@ -69,11 +69,11 @@ end
 function setextheader(stream::IO, md::MD)
     withstream(stream) do
         eatindent(stream) || return false
-        header = readline(stream) |> strip
+        header = readuntilnewline(stream) |> strip
         header == "" && return false
 
         eatindent(stream) || return false
-        underline = readline(stream) |> strip
+        underline = readuntilnewline(stream) |> strip
         length(underline) < 3 && return false
         u = underline[1]
         u in "-=" || return false
@@ -101,7 +101,7 @@ function indentcode(stream::IO, block::MD)
         buffer = IOBuffer()
         while !eof(stream)
             if startswith(stream, "    ") || startswith(stream, "\t")
-                write(buffer, readline(stream))
+                write(buffer, readuntilnewline(stream; keepend==true))
             elseif blankline(stream)
                 write(buffer, '\n')
             else
@@ -109,7 +109,7 @@ function indentcode(stream::IO, block::MD)
             end
         end
         code = takebuf_string(buffer)
-        !isempty(code) && (push!(block, Code(rstrip(code))); return true)
+        !isempty(code) && (push!(block, Code(code |> rstrip)); return true)
         return false
     end
 end
@@ -132,7 +132,7 @@ function blockquote(stream::IO, block::MD)
         empty = true
         while eatindent(stream) && startswith(stream, '>')
             startswith(stream, " ")
-            write(buffer, readline(stream))
+            write(buffer, readuntilnewline(stream, keepend=true))
             empty = false
         end
         empty && return false
@@ -188,11 +188,10 @@ function list(stream::IO, block::MD)
                 end
                 fresh_line = false
             else
-                c = read(stream, Char)
-                if c == '\n'
+                if eatnewline(io)
+                    c = read(stream, Char)
                     eof(stream) && break
-                    next = peek(stream)
-                    if next == '\n'
+                    if eatnewline(io)
                         break
                     else
                         fresh_line = true
@@ -219,8 +218,8 @@ function horizontalrule(stream::IO, block::MD)
    withstream(stream) do
        n, rule = 0, ' '
        while !eof(stream)
+           eatnewline(io) && break
            char = read(stream, Char)
-           char == '\n' && break
            isspace(char) && continue
            if n==0 || char==rule
                rule = char

@@ -11,12 +11,12 @@ const PRECISION = 3
 
 const DIGITS = Array(UInt8,309+17)
 
-include("grisu/float.jl")
-include("grisu/fastshortest.jl")
-include("grisu/fastprecision.jl")
-include("grisu/fastfixed.jl")
-include("grisu/bignums.jl")
-include("grisu/bignum.jl")
+include("float.jl")
+include("fastshortest.jl")
+include("fastprecision.jl")
+include("fastfixed.jl")
+include("bignums.jl")
+include("bignum.jl")
 
 const BIGNUMS = [Bignums.Bignum(),Bignums.Bignum(),Bignums.Bignum(),Bignums.Bignum()]
 

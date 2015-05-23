@@ -11,7 +11,7 @@ const DEFAULT_META = "git://github.com/JuliaLang/METADATA.jl"
 const META_BRANCH = "metadata-v2"
 
 for file in split("git dir github types reqs cache read query resolve write generate entry")
-    include("pkg/$file.jl")
+    include("$file.jl")
 end
 const cd = Dir.cd
 

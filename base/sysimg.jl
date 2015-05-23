@@ -126,7 +126,7 @@ include("process.jl")
 include("multimedia.jl")
 importall .Multimedia
 ccall(:jl_get_uv_hooks, Void, ()) # TODO: should put this in _init
-include("grisu.jl")
+include("grisu/Grisu.jl")
 import .Grisu.print_shortest
 include("file.jl")
 include("methodshow.jl")
@@ -199,7 +199,7 @@ importall .Printf
 include("meta.jl")
 
 # enums
-include("Enums.jl")
+include("enums.jl")
 importall .Enums
 
 # concurrency and parallelism
@@ -249,7 +249,7 @@ using .Markdown
 include("util.jl")
 
 # dense linear algebra
-include("linalg.jl")
+include("linalg/Linalg.jl")
 importall .LinAlg
 const ⋅ = dot
 const × = cross
@@ -260,7 +260,7 @@ importall .Broadcast
 include("statistics.jl")
 
 # sparse matrices and sparse linear algebra
-include("sparse.jl")
+include("sparse/Sparse.jl")
 importall .SparseMatrix
 
 # signal processing
@@ -286,7 +286,7 @@ include("fastmath.jl")
 importall .FastMath
 
 # package manager
-include("pkg.jl")
+include("pkg/Pkg.jl")
 const Git = Pkg.Git
 
 # profiler
@@ -294,7 +294,7 @@ include("profile.jl")
 importall .Profile
 
 # dates
-include("Dates.jl")
+include("dates/Dates.jl")
 import .Dates: Date, DateTime, now
 
 # deprecated functions

@@ -17,15 +17,15 @@ export AbstractSparseArray, AbstractSparseMatrix, AbstractSparseVector, SparseMa
        rowvals, sparse, sparsevec, spdiagm, speye, spones, sprand, sprandbool, sprandn,
        spzeros, symperm
 
-include("sparse/abstractsparse.jl")
-include("sparse/sparsematrix.jl")
-include("sparse/csparse.jl")
+include("abstractsparse.jl")
+include("sparsematrix.jl")
+include("csparse.jl")
 
-include("sparse/linalg.jl")
+include("linalg.jl")
 if Base.USE_GPL_LIBS
-    include("sparse/umfpack.jl")
-    include("sparse/cholmod.jl")
-    include("sparse/spqr.jl")
+    include("umfpack.jl")
+    include("cholmod.jl")
+    include("spqr.jl")
 end
 
 end # module SparseMatrix

@@ -30,7 +30,8 @@ function blocktex(stream::IO, md::MD)
     end
 end
 
-# TODO html and htmlinline
+html(io::IO, tex::LaTeX) = print(io, "\\[", tex.formula, "\\]")
+htmlinline(io::IO, tex::LaTeX) = print(io, '$', tex.formula, '$')
 
 latex(io::IO, tex::LaTeX) = print(io, "\\[", tex.formula, "\\]")
 latexinline(io::IO, tex::LaTeX) = print(io, '$', tex.formula, '$')

@@ -1,7 +1,10 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
 using Base.Markdown
-import Base.Markdown: MD, Paragraph, Header, Italic, Bold, plain, term, html, Table, Code, LaTeX
+import Base.Markdown: MD, Paragraph, Header, Italic, BlockQuote, Bold,
+                      HorizontalRule, Image,LineBreak, Link, List,
+                      plain, term, html, plaininline, terminline, htmlinline,
+                      Table, Code, LaTeX, latex, latexinline
 import Base: writemime
 
 # Basics
@@ -191,3 +194,22 @@ $|x| < 1$"""
 
 
 @test latex(latex_doc) == "We have \$x^2 < x\$ whenever:\n\\[|x| < 1\\]"
+
+# Test that each type has all block rendering or all inline rendering
+# Note: a type can have both e.g. Code.
+blockfuncs = [html, plain, latex]
+inlinefuncs = [htmlinline, latexinline, plaininline]
+md_types = [BlockQuote, Bold, Code, Header, HorizontalRule, Image,
+            Italic, LaTeX, LineBreak, Link, List, Paragraph, String, Table]
+
+for T in md_types
+    # Are the methods defined for T, or do they fallback to Any.
+    blockmeths = [which(f, (IO, T)) != which(f, (IO, Any))
+                  for f in blockfuncs]
+    inlinemeths = [which(f, (IO, T)) != which(f, (IO, Any))
+                   for f in inlinefuncs]
+    # Either all methods are defined or none.
+    @test sum(blockmeths) in (0, length(blockfuncs))
+    @test sum(inlinemeths) in (0, length(inlinefuncs))
+end
+
